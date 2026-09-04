@@ -2,6 +2,29 @@
 
 Journal de la couche personnelle. Le `CHANGELOG.md` OpenClaw reste généré pour les releases upstream — ne pas l'éditer ici.
 
+## 0.2.0 — 2026-09-04
+
+### Pourquoi
+
+Pousser la couche Nimbus plus loin (anticipation, jumeau, oubli, pièces, skills, débat, offline, confiance) sans toucher au runtime OpenClaw.
+
+### Ajouté
+
+- Anticipation calibrée (`anticipate`) : stubs calendrier/heartbeat, notes utile/pas utile, poids locaux, cooldown anti-spam.
+- Jumeau de stack (`twin`) : graphe service/repo/node éditable + simulation d'impact avant une étape colonie risquée.
+- Mémoire à oubli volontaire : zones `perso` / `collegue` / `tech`, TTL, `forget --weekend` / `--zone`. Refus des secrets inchangé.
+- Présence vocale : pièces bureau/salon (zone + outils). HUD visible. Micro toujours coupé au changement de pièce.
+- Skills autogen : après N succès identiques, brouillon en bac à sable `deny-exec` jusqu'à approbation humaine.
+- Mode débat : deux briefs (sécurité vs vitesse), recommandation Reine, décision humaine, registre des deux côtés.
+- Continuum offline : file d'actions, résumé + approbations pendantes à la reconnexion.
+- Score de confiance par outil : auto-ready seulement au-dessus du seuil et hors risque haut / deny-exec.
+- CLI étendue + tests dédiés. Doc limites : `nimbus/docs/innovations.md`.
+
+### Inchangé
+
+- Install/run OpenClaw. Consentement vocal. Défaut colonie `needs_approval` pour `exec`. Overlay `deny`.
+- Toujours pas de `src/` OpenClaw modifié.
+
 ## 0.1.0 — 2026-09-04
 
 ### Pourquoi

@@ -4,9 +4,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   authorize,
-  createColony,
-  createMemory,
-  createParkDesk,
+  createNimbus,
   createVoiceSession,
   describePermissionModes,
   installNimbusProfile,
@@ -54,20 +52,45 @@ function help() {
 Usage:
   node nimbus/cli/nimbus.mjs <commande> [options]
 
-Commandes:
-  help
-  profile show
-  profile install --workspace <dir> [--force]
-  memory learn --key <k> --value <v> [--kind preference|correction|fact]
-  memory forget --id <id> | --key <k>
-  memory list [--query <q>]
+Profil / mémoire
+  profile show | install --workspace <dir> [--force]
+  memory learn --key <k> --value <v> [--kind preference|correction|fact] [--zone perso|collegue|tech] [--ttl weekend|<heures>]
+  memory forget --id <id> | --key <k> | --zone <z> | --weekend
+  memory list [--query <q>] [--zone <z>]
+
+Colonie / débat / skills
   colony worker --id <id> [--role lead|worker]
   colony task --title <titre>
   colony assign --task <id> --worker <id>
-  colony step --task <id> --action <famille> --summary <texte>
+  colony step --task <id> --action <famille> --summary <texte> [--target <nœud>]
   colony decide --step <id> --verdict approve|reject
   colony run --step <id>
   colony ledger
+  debate open --question <texte> [--task <id>]
+  debate argue --id <deb> --side security|speed --text <texte> [--worker <id>]
+  debate queen --id <deb> --pick security|speed [--note <texte>]
+  debate decide --id <deb> --pick security|speed
+  debate ledger
+  skills record --pattern <p> --summary <texte> [--action <famille>]
+  skills list
+  skills sandbox --id <skill>
+  skills approve|reject|run --id <skill>
+
+Jumeau / anticipation / présence / hors-ligne / confiance
+  twin node --id <id> [--kind service|repo|node] [--label <l>] [--deps a,b] [--critical]
+  twin link --from <a> --to <b>
+  twin graph
+  twin impact --target <id> --action <famille>
+  anticipate add --context <c> --text <texte> [--at ISO]
+  anticipate due
+  anticipate rate --id <hint> --verdict useful|not_useful
+  room enter --id bureau|salon
+  room current
+  offline on|off
+  offline enqueue --action <a> --summary <texte> [--risk low|high]
+  offline reconnect
+  offline decide --id <q> --verdict approve|reject
+  trust show [--action <a>]
   park start --title <titre>
   park park --session <id> [--reason <texte>]
   park resume --session <id>
@@ -86,6 +109,7 @@ function main() {
   const { command, positional, flags } = parseArgs(process.argv);
   const root = stateDir(flags);
   const sub = positional[0];
+  const nimbus = createNimbus(root, { permissionMode: flags.mode ?? "deny" });
 
   if (command === "help" || command === "-h" || command === "--help") {
     help();
@@ -102,66 +126,224 @@ function main() {
   }
 
   if (command === "memory") {
-    const memory = createMemory(root);
     if (sub === "learn") {
-      print(memory.learn({ key: flags.key, value: flags.value, kind: flags.kind }));
+      print(
+        nimbus.memory.learn({
+          key: flags.key,
+          value: flags.value,
+          kind: flags.kind,
+          zone: flags.zone,
+          ttl: flags.ttl,
+        }),
+      );
       return;
     }
     if (sub === "forget") {
-      print(memory.forget({ id: flags.id, key: flags.key, query: flags.query }));
+      if (flags.weekend) {
+        print(nimbus.memory.forgetWeekend());
+        return;
+      }
+      if (flags.zone && !flags.id && !flags.key) {
+        print(nimbus.memory.forgetZone(flags.zone));
+        return;
+      }
+      print(nimbus.memory.forget({ id: flags.id, key: flags.key, query: flags.query }));
       return;
     }
-    print(memory.recall({ query: flags.query }));
+    print(nimbus.memory.recall({ query: flags.query, zone: flags.zone }));
     return;
   }
 
   if (command === "colony") {
-    const colony = createColony(root, { permissionMode: flags.mode ?? "deny" });
     if (sub === "worker") {
-      print(colony.addWorker({ id: flags.id, role: flags.role, skills: flags.skills?.split(",") }));
+      print(nimbus.colony.addWorker({ id: flags.id, role: flags.role, skills: flags.skills?.split(",") }));
       return;
     }
     if (sub === "task") {
-      print(colony.createTask({ title: flags.title, assignee: flags.assignee }));
+      print(nimbus.colony.createTask({ title: flags.title, assignee: flags.assignee }));
       return;
     }
     if (sub === "assign") {
-      print(colony.assignTask(flags.task, flags.worker));
+      print(nimbus.colony.assignTask(flags.task, flags.worker));
       return;
     }
     if (sub === "step") {
-      print(colony.proposeStep({ taskId: flags.task, action: flags.action, summary: flags.summary }));
+      print(
+        nimbus.colony.proposeStep({
+          taskId: flags.task,
+          action: flags.action,
+          summary: flags.summary,
+          targetId: flags.target,
+        }),
+      );
       return;
     }
     if (sub === "decide") {
-      print(colony.decideStep(flags.step, flags.verdict, "human"));
+      print(nimbus.colony.decideStep(flags.step, flags.verdict, "human"));
       return;
     }
     if (sub === "run") {
-      print(colony.runStep(flags.step));
+      print(nimbus.colony.runStep(flags.step));
       return;
     }
-    print(colony.ledger());
+    print(nimbus.colony.ledger());
+    return;
+  }
+
+  if (command === "debate") {
+    if (sub === "open") {
+      print(nimbus.debate.open({ question: flags.question, taskId: flags.task }));
+      return;
+    }
+    if (sub === "argue") {
+      print(nimbus.debate.argue(flags.id, flags.side, flags.text, flags.worker ?? flags.side));
+      return;
+    }
+    if (sub === "queen") {
+      print(nimbus.debate.queenRecommend(flags.id, flags.pick, flags.note ?? ""));
+      return;
+    }
+    if (sub === "decide") {
+      print(nimbus.debate.decide(flags.id, flags.pick, "human"));
+      return;
+    }
+    print(nimbus.debate.ledger());
+    return;
+  }
+
+  if (command === "skills") {
+    if (sub === "record") {
+      print(nimbus.skills.recordSuccess({ pattern: flags.pattern, summary: flags.summary, action: flags.action }));
+      return;
+    }
+    if (sub === "sandbox") {
+      print(nimbus.skills.sandboxRun(flags.id));
+      return;
+    }
+    if (sub === "approve") {
+      print(nimbus.skills.approve(flags.id));
+      return;
+    }
+    if (sub === "reject") {
+      print(nimbus.skills.reject(flags.id));
+      return;
+    }
+    if (sub === "run") {
+      print(nimbus.skills.run(flags.id));
+      return;
+    }
+    print(nimbus.skills.list());
+    return;
+  }
+
+  if (command === "twin") {
+    if (sub === "node") {
+      print(
+        nimbus.twin.upsertNode({
+          id: flags.id,
+          kind: flags.kind,
+          label: flags.label,
+          deps: flags.deps ? String(flags.deps).split(",") : [],
+          critical: Boolean(flags.critical),
+        }),
+      );
+      return;
+    }
+    if (sub === "link") {
+      print(nimbus.twin.link(flags.from, flags.to));
+      return;
+    }
+    if (sub === "impact") {
+      print(nimbus.twin.simulateImpact({ targetId: flags.target, action: flags.action ?? "exec" }));
+      return;
+    }
+    print(nimbus.twin.graph());
+    return;
+  }
+
+  if (command === "anticipate") {
+    if (sub === "add") {
+      print(nimbus.anticipation.scheduleHint({ context: flags.context, text: flags.text, at: flags.at }));
+      return;
+    }
+    if (sub === "rate") {
+      print(nimbus.anticipation.rate(flags.id, flags.verdict));
+      return;
+    }
+    print(nimbus.anticipation.dueHints());
+    return;
+  }
+
+  if (command === "room") {
+    if (sub === "enter") {
+      const entered = nimbus.presence.enter(flags.id);
+      if (entered.ok) {
+        nimbus.voice.setRoom(entered.room);
+      }
+      print(entered);
+      return;
+    }
+    print(nimbus.presence.current());
+    return;
+  }
+
+  if (command === "offline") {
+    if (sub === "off") {
+      print(nimbus.continuum.setOnline(false));
+      return;
+    }
+    if (sub === "on") {
+      print(nimbus.continuum.setOnline(true));
+      return;
+    }
+    if (sub === "enqueue") {
+      print(
+        nimbus.continuum.enqueue({
+          action: flags.action,
+          summary: flags.summary,
+          risk: flags.risk,
+          needsApproval: flags.risk !== "low",
+        }),
+      );
+      return;
+    }
+    if (sub === "reconnect") {
+      print(nimbus.continuum.reconnect());
+      return;
+    }
+    if (sub === "decide") {
+      print(nimbus.continuum.decide(flags.id, flags.verdict));
+      return;
+    }
+    print(nimbus.continuum.status());
+    return;
+  }
+
+  if (command === "trust") {
+    if (flags.action) {
+      print(nimbus.trust.score(flags.action));
+      return;
+    }
+    print(nimbus.trust.list());
     return;
   }
 
   if (command === "park") {
-    const desk = createParkDesk(root);
     if (sub === "start") {
-      print(desk.start({ title: flags.title }));
+      print(nimbus.park.start({ title: flags.title }));
       return;
     }
     if (sub === "park") {
-      print(desk.park(flags.session, flags.reason ?? ""));
+      print(nimbus.park.park(flags.session, flags.reason ?? ""));
       return;
     }
     if (sub === "resume") {
-      print(desk.resume(flags.session));
+      print(nimbus.park.resume(flags.session));
       return;
     }
     if (sub === "action") {
       print(
-        desk.recordAction(flags.session, {
+        nimbus.park.recordAction(flags.session, {
           type: flags.type,
           detail: flags.detail,
           tokensIn: Number(flags["tokens-in"]) || 0,
@@ -171,10 +353,10 @@ function main() {
       return;
     }
     if (sub === "cost") {
-      print(desk.cost(flags.session));
+      print(nimbus.park.cost(flags.session));
       return;
     }
-    print(desk.timeline(flags.session));
+    print(nimbus.park.timeline(flags.session));
     return;
   }
 

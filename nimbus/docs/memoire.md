@@ -5,11 +5,16 @@ Stockage local des préférences et corrections. Rien n'est envoyé vers un clou
 ## Commandes
 
 ```bash
-node nimbus/cli/nimbus.mjs memory learn --key ville --value Paris --kind preference
+node nimbus/cli/nimbus.mjs memory learn --key ville --value Paris --kind preference --zone perso
 node nimbus/cli/nimbus.mjs memory learn --key prenom --value "Micka = mi-ka" --kind correction
-node nimbus/cli/nimbus.mjs memory list --query paris
+node nimbus/cli/nimbus.mjs memory learn --key courses --value lait --ttl weekend --zone perso
+node nimbus/cli/nimbus.mjs memory list --query paris --zone perso
 node nimbus/cli/nimbus.mjs memory forget --key ville
+node nimbus/cli/nimbus.mjs memory forget --zone collegue
+node nimbus/cli/nimbus.mjs memory forget --weekend
 ```
+
+Zones : `perso`, `collegue` (`kollega` accepté), `tech`. TTL : nombre d'heures ou `weekend` (expire le lundi UTC, ou oubli groupé via `--weekend`).
 
 ## Secrets
 

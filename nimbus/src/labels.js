@@ -12,6 +12,20 @@ export const LABELS = Object.freeze({
     consentRevoked: "Consentement retiré. Micro coupé.",
     bargeIn: "Interruption (barge-in)",
     hudTitle: "Nimbus — conversation vocale",
+    roomBureau: "Bureau",
+    roomSalon: "Salon",
+  }),
+  rooms: Object.freeze({
+    bureau: "Bureau",
+    salon: "Salon",
+  }),
+  debate: Object.freeze({
+    security: "Sécurité",
+    speed: "Vitesse",
+    awaitingHuman: "La Reine a tranché — à toi de confirmer.",
+  }),
+  anticipation: Object.freeze({
+    quiet: "Silence calibré — pas de spam.",
   }),
   permissions: Object.freeze({
     deny: "Refus par défaut",
@@ -37,6 +51,7 @@ export const LABELS = Object.freeze({
 });
 
 export function voiceHud(snapshot) {
+  const roomId = snapshot.room?.id;
   return {
     phase: snapshot.phase,
     phaseLabel: LABELS.voice[snapshot.phase],
@@ -47,5 +62,7 @@ export function voiceHud(snapshot) {
       ? LABELS.voice.consentGranted
       : LABELS.voice.consentRequired,
     bargeIn: Boolean(snapshot.bargeInArmed),
+    room: roomId ?? null,
+    roomLabel: roomId ? (LABELS.rooms[roomId] ?? snapshot.room.label ?? roomId) : null,
   };
 }

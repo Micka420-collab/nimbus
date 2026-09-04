@@ -30,11 +30,19 @@ node nimbus/cli/nimbus.mjs profile install --workspace ~/.openclaw/workspace
 | Module | Rôle |
 | --- | --- |
 | Profil | `SOUL.md` / `IDENTITY.md` Jarvis FR |
-| Mémoire | préférences + corrections locales, `learn` / `forget` |
-| Voix | STT→agent→TTS, barge-in, HUD Écoute/Réflexion/Parole/Micro coupé |
+| Mémoire | préférences + corrections, zones, TTL, oubli weekend |
+| Voix | STT→agent→TTS, barge-in, HUD, pièces bureau/salon |
 | Colonie | chef, ouvriers, registre, approbation humaine |
+| Débat | sécurité vs vitesse, Reine + humain |
+| Skills | brouillon local après N succès, bac à sable deny-exec |
+| Jumeau | graphe homelab + dry-run d'impact |
+| Anticipation | hints calibrés, anti-spam |
+| Continuum | file hors-ligne + résumé à la reco |
+| Confiance | score par outil, jamais d'auto-exec haut risque en deny |
 | Park | pause / reprise, frise d'actions, coût approximatif |
 | Permissions | défaut `deny`, modes documentés |
+
+Détail innovations + limites : [docs/innovations.md](docs/innovations.md).
 
 ## Voix — honnêteté
 

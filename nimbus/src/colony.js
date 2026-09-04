@@ -12,6 +12,8 @@ export function createColony(rootDir, options = {}) {
   const store = createJsonStore(storePath(rootDir, "colony-ledger.json"), EMPTY);
   const now = options.now ?? (() => new Date().toISOString());
   const permissionMode = options.permissionMode ?? "deny";
+  const trust = options.trust ?? null;
+  const twin = options.twin ?? null;
 
   const persist = (mutate) => {
     const doc = store.read();
@@ -89,24 +91,34 @@ export function createColony(rootDir, options = {}) {
           return { ok: false, code: "task_unavailable", message: "task missing or cancelled" };
         }
         const classification = classifyAction(action);
+        const impact =
+          twin && input?.targetId
+            ? twin.simulateImpact({ action, targetId: input.targetId })
+            : null;
         const decision = authorize({
           action,
           mode: permissionMode,
           approved: false,
         });
+        const trusted = Boolean(trust?.mayAutoRun?.(action));
+        // High-risk + default-deny stays human-gated even with a hot trust score.
+        const autoReady = decision.allowed || (trusted && classification.risk !== "high" && !impact?.blocked);
         const step = {
           id: `step_${randomUUID()}`,
           taskId,
           action,
           summary,
-          risk: classification.risk,
-          status: decision.allowed ? "ready" : "needs_approval",
+          risk: impact?.blocked ? "high" : classification.risk,
+          targetId: input?.targetId ?? null,
+          impact,
+          trusted,
+          status: autoReady && !impact?.blocked ? "ready" : "needs_approval",
           createdAt: now(),
           decidedAt: null,
           decidedBy: null,
         };
         doc.steps.push(step);
-        return { ok: true, step, decision };
+        return { ok: true, step, decision, impact };
       });
     },
 
@@ -125,6 +137,7 @@ export function createColony(rootDir, options = {}) {
         step.status = verdict === "approve" ? "ready" : "rejected";
         step.decidedAt = now();
         step.decidedBy = actor;
+        trust?.record?.(step.action, verdict);
         return { ok: true, step: { ...step } };
       });
     },

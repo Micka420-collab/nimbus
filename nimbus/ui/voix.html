@@ -58,6 +58,11 @@
       <div id="phase" class="phase">Micro coupé</div>
       <div id="mic" class="mic">Micro inactif</div>
       <div id="consent" class="note">Consentement requis — le micro ne s'allume jamais tout seul.</div>
+      <div id="room" class="note">Pièce : aucune — changer de pièce ne démarre pas le micro.</div>
+      <p>
+        <button id="bureau" type="button">Bureau</button>
+        <button id="salon" type="button">Salon</button>
+      </p>
       <p>
         <button id="grant" type="button">Autoriser l'écoute</button>
         <button id="listen" type="button">Écouter</button>
@@ -71,6 +76,7 @@
       // Inline state machine (same rules as nimbus/src/voice.js). No network.
       let phase = "muted";
       let consent = false;
+      let room = null;
       const labels = {
         muted: "Micro coupé",
         listening: "Écoute",
@@ -84,7 +90,16 @@
         document.getElementById("consent").textContent = consent
           ? "Écoute autorisée pour cette session."
           : "Consentement requis — le micro ne s'allume jamais tout seul.";
+        document.getElementById("room").textContent = room
+          ? `Pièce : ${room} — micro inchangé.`
+          : "Pièce : aucune — changer de pièce ne démarre pas le micro.";
       };
+      const enterRoom = (name) => {
+        room = name;
+        render();
+      };
+      document.getElementById("bureau").onclick = () => enterRoom("Bureau");
+      document.getElementById("salon").onclick = () => enterRoom("Salon");
       document.getElementById("grant").onclick = async () => {
         if (navigator.mediaDevices?.getUserMedia) {
           try {

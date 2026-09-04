@@ -13,6 +13,7 @@ export function createVoiceSession(options = {}) {
   let consentGranted = false;
   let bargeInEnabled = options.bargeInEnabled !== false;
   let pendingTranscript = "";
+  let room = options.room ?? null;
   const events = [];
 
   const snapshot = () => {
@@ -24,6 +25,7 @@ export function createVoiceSession(options = {}) {
       bargeInArmed: micLive && phase === "speaking",
       micLive,
       pendingTranscript,
+      room,
     };
     return { ...state, hud: voiceHud(state) };
   };
@@ -118,6 +120,14 @@ export function createVoiceSession(options = {}) {
     setBargeIn(enabled) {
       bargeInEnabled = Boolean(enabled);
       return snapshot();
+    },
+
+    /**
+     * Room change never grants consent and never starts the mic.
+     */
+    setRoom(nextRoom) {
+      room = nextRoom ? { ...nextRoom } : null;
+      return emit("room", { room });
     },
   };
 }

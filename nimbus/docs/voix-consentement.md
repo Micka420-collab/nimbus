@@ -41,3 +41,7 @@ node nimbus/cli/nimbus.mjs voice demo
 ```
 
 Ouvre `nimbus/ui/voix.html` dans un navigateur pour le HUD. Le micro du navigateur n'est demandé qu'après le bouton **Autoriser l'écoute**.
+
+## Pièces (bureau / salon)
+
+Changer de pièce change la zone mémoire et les outils par défaut. **Ça ne démarre jamais le micro.** La session reste en Micro coupé jusqu'au consentement explicite.
