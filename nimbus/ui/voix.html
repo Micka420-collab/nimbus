@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nimbus — conversation vocale</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #0f1419;
+        color: #e8eef4;
+      }
+      body {
+        max-width: 40rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      .hud {
+        border: 1px solid #3a4654;
+        border-radius: 12px;
+        padding: 1.25rem;
+        background: #1a222c;
+      }
+      .phase {
+        font-size: 1.6rem;
+        font-weight: 650;
+      }
+      .mic {
+        margin: 0.4rem 0 1rem;
+      }
+      button {
+        margin-right: 0.4rem;
+        margin-bottom: 0.4rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 8px;
+        border: 0;
+        background: #3d7ea6;
+        color: white;
+        cursor: pointer;
+      }
+      button.danger {
+        background: #8a3c3c;
+      }
+      .note {
+        color: #9aa8b5;
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Nimbus — conversation vocale</h1>
+    <p class="note">
+      Aucun micro n'est demandé au chargement. L'écoute commence seulement après
+      <strong>Autoriser l'écoute</strong>, puis la permission du navigateur.
+    </p>
+    <div class="hud">
+      <div id="phase" class="phase">Micro coupé</div>
+      <div id="mic" class="mic">Micro inactif</div>
+      <div id="consent" class="note">Consentement requis — le micro ne s'allume jamais tout seul.</div>
+      <p>
+        <button id="grant" type="button">Autoriser l'écoute</button>
+        <button id="listen" type="button">Écouter</button>
+        <button id="think" type="button">Simuler une phrase</button>
+        <button id="speak" type="button">Simuler une réponse</button>
+        <button id="barge" type="button">Barge-in</button>
+        <button id="revoke" class="danger" type="button">Couper / retirer</button>
+      </p>
+    </div>
+    <script type="module">
+      // Inline state machine (same rules as nimbus/src/voice.js). No network.
+      let phase = "muted";
+      let consent = false;
+      const labels = {
+        muted: "Micro coupé",
+        listening: "Écoute",
+        thinking: "Réflexion",
+        speaking: "Parole",
+      };
+      const render = () => {
+        const micLive = consent && (phase === "listening" || phase === "speaking");
+        document.getElementById("phase").textContent = labels[phase];
+        document.getElementById("mic").textContent = micLive ? "Micro actif" : "Micro inactif";
+        document.getElementById("consent").textContent = consent
+          ? "Écoute autorisée pour cette session."
+          : "Consentement requis — le micro ne s'allume jamais tout seul.";
+      };
+      document.getElementById("grant").onclick = async () => {
+        if (navigator.mediaDevices?.getUserMedia) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach((track) => track.stop());
+          } catch {
+            alert("Permission micro refusée par le navigateur. Nimbus reste en micro coupé.");
+            return;
+          }
+        }
+        consent = true;
+        render();
+      };
+      document.getElementById("listen").onclick = () => {
+        if (!consent) {
+          alert("Consentement requis.");
+          return;
+        }
+        phase = "listening";
+        render();
+      };
+      document.getElementById("think").onclick = () => {
+        if (phase !== "listening" && phase !== "speaking") return;
+        phase = "thinking";
+        render();
+      };
+      document.getElementById("speak").onclick = () => {
+        if (phase !== "thinking") return;
+        phase = "speaking";
+        render();
+      };
+      document.getElementById("barge").onclick = () => {
+        if (phase !== "speaking" || !consent) return;
+        phase = "listening";
+        render();
+      };
+      document.getElementById("revoke").onclick = () => {
+        consent = false;
+        phase = "muted";
+        render();
+      };
+      render();
+    </script>
+  </body>
+</html>
