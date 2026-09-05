@@ -12,3 +12,13 @@ test("installer icon meets electron-builder 256px floor", () => {
   assert.ok(width >= 256, `icon width ${width}`);
   assert.ok(height >= 256, `icon height ${height}`);
 });
+
+test("CI verifies the NSIS exe without uploading on every PR", () => {
+  const yaml = readFileSync(new URL("../../../.github/workflows/nimbus-windows-agent.yml", import.meta.url), "utf8");
+  assert.equal(yaml.includes("Copy-Item"), false);
+  assert.match(yaml, /Verify installer artifact/);
+  assert.match(
+    yaml,
+    /Upload installer\n {8}if: github\.event_name == 'workflow_dispatch' \|\| startsWith\(github\.ref, 'refs\/tags\/nimbus-agent-v'\)/,
+  );
+});

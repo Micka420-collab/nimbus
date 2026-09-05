@@ -110,7 +110,7 @@ npm run dist
 # dist/NimbusAgent-Setup-x64.exe
 ```
 
-Workflow: `.github/workflows/nimbus-windows-agent.yml` (`windows-latest` NSIS). Tag `nimbus-agent-v*` to attach the asset.
+Workflow: `.github/workflows/nimbus-windows-agent.yml` (`windows-latest` NSIS). PR/push verify `dist/NimbusAgent-Setup-x64.exe` without uploading it (Actions artifact quota). Tag `nimbus-agent-v*` or run the workflow manually to attach/upload the asset.
 
 ## What is verified where
 
