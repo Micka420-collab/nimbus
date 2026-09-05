@@ -5,6 +5,11 @@ import { inferControlUiPublicAssetPath } from "../../app/public-assets.ts";
 import { icons } from "../../components/icons.ts";
 import { t } from "../../i18n/index.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "../../lib/external-link.ts";
+import {
+  nimbusWindowsAgentDocsUrl,
+  nimbusWindowsAgentGithubDownloadUrl,
+  nimbusWindowsAgentGithubReleasesUrl,
+} from "../../lib/nimbus-windows-agent.ts";
 import "../../styles/apps.css";
 import { brandIcons } from "../about/brand-icons.ts";
 import { appsBrandIcons } from "./brand-icons.ts";
@@ -131,10 +136,14 @@ const APP_SECTIONS: readonly AppSection[] = [
         ctas: [
           {
             kind: "external",
-            href: "https://github.com/openclaw/openclaw-windows-node/releases/latest",
-            label: () => t("appsPage.ctaDownload"),
+            href: nimbusWindowsAgentGithubDownloadUrl(),
+            label: () => t("appsPage.ctaDownloadWindowsAgent"),
           },
-          docsCta("/platforms/windows"),
+          {
+            kind: "external",
+            href: nimbusWindowsAgentDocsUrl(),
+            label: () => t("appsPage.ctaDocs"),
+          },
         ],
       },
       {
@@ -306,6 +315,40 @@ function renderCommunity() {
   `;
 }
 
+function renderNimbusWindowsDownload() {
+  const exe = nimbusWindowsAgentGithubDownloadUrl();
+  const releases = nimbusWindowsAgentGithubReleasesUrl();
+  return html`
+    <section class="apps-nimbus-download" aria-label=${t("appsPage.ctaDownloadWindowsAgent")}>
+      <h2 class="apps-section__heading">${t("appsPage.ctaDownloadWindowsAgent")}</h2>
+      <div class="apps-nimbus-download__card">
+        <div>
+          <h3 class="apps-nimbus-download__title">${t("appsPage.cards.windows.title")}</h3>
+          <p class="apps-nimbus-download__desc">${t("appsPage.nimbusWindowsTagline")}</p>
+        </div>
+        <div class="apps-nimbus-download__ctas">
+          <a
+            class="apps-card__cta apps-card__cta--primary"
+            href=${exe}
+            target=${EXTERNAL_LINK_TARGET}
+            rel=${buildExternalLinkRel()}
+          >
+            ${t("appsPage.ctaDownloadWindowsAgent")}
+          </a>
+          <a
+            class="apps-card__cta"
+            href=${releases}
+            target=${EXTERNAL_LINK_TARGET}
+            rel=${buildExternalLinkRel()}
+          >
+            ${t("appsPage.ctaDownload")}
+          </a>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 export function renderApps(props: AppsProps) {
   return html`
     <div class="apps-page">
@@ -313,6 +356,7 @@ export function renderApps(props: AppsProps) {
         <h1 class="apps-hero__title">${t("appsPage.heroTitle")}</h1>
         <p class="apps-hero__tagline">${t("appsPage.heroTagline")}</p>
       </section>
+      ${renderNimbusWindowsDownload()}
       ${APP_SECTIONS.map((section) => renderSection(section, props))} ${renderCommunity()}
     </div>
   `;

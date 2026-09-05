@@ -2,12 +2,13 @@
 
 Couche locale personnelle posée sur une copie de travail d'[OpenClaw 2.0](https://github.com/openclaw/openclaw) (`v2026.8.1`). Ce n'est pas une réécriture du runtime OpenClaw : le runtime est intact, la couche additive vit dans [`nimbus/`](nimbus/) et écrit ses propres fichiers sous `~/.nimbus` (ou `NIMBUS_STATE_DIR`).
 
-Deux choses cohabitent dans ce dépôt, et elles s'installent séparément :
+Trois choses cohabitent dans ce dépôt, et elles s'installent séparément :
 
 | Brique | Ce que c'est | Installation |
 | --- | --- | --- |
 | **Gateway OpenClaw** | L'assistant complet : modèles, canaux, Control UI, service. | Docker ou build source — voir ci-dessous |
 | **Couche Nimbus** | Mémoire, colonie, confiance, file hors-ligne, park, permissions. Zéro dépendance. | Aucune. Node ≥ 22 et c'est tout |
+| **Agent Windows** | Nœud Electron : pairage Gateway, voix PTT, contrôle bureau Astra, HUD visible. | Installateur `NimbusAgent-Setup-x64.exe` — voir section 4 |
 
 ---
 
@@ -200,7 +201,8 @@ Aucune installation : Node ≥ 22, aucune dépendance, aucun build. Elle fonctio
 
 ```bash
 node nimbus/cli/nimbus.mjs --help
-node --test nimbus/test/*.test.js     # 41 tests
+node --test nimbus/test/*.test.js     # overlay
+node --test nimbus/windows-agent/test/*.test.js
 ```
 
 ### Ce qui écrit un état réel sur disque
@@ -214,6 +216,7 @@ node --test nimbus/test/*.test.js     # 41 tests
 | Permissions | Overlay deny par défaut. `permissions apply` fusionne `tools.exec.mode` dans un `openclaw.json` réel (garde le mode existant sans `--force`). | `openclaw.json` cible |
 | Profil | Copie `SOUL.md`, `IDENTITY.md`, `USER.md`, `AGENTS.md`, `MEMORY.md` dans un workspace. N'écrase pas sans `--force`. | fichiers du workspace |
 | Park | Pause/reprise de sessions, frise d'actions, estimation de coût. | `~/.nimbus/park.json` |
+| Agent Windows | Pairage nœud Gateway, voix PTT, contrôle bureau Astra avec HUD. Installateur : `NimbusAgent-Setup-x64.exe`. | `~/.nimbus/windows-agent.json` |
 
 ### Premiers pas
 
@@ -240,6 +243,15 @@ node nimbus/cli/nimbus.mjs --state /tmp/nimbus-demo memory list
 ```
 
 Docs détaillées : [`nimbus/docs/memoire.md`](nimbus/docs/memoire.md), [`nimbus/docs/colonie.md`](nimbus/docs/colonie.md), [`nimbus/docs/permissions.md`](nimbus/docs/permissions.md).
+
+### Compagnon Windows
+
+Pairage comme nœud Gateway, PTT visible, contrôle bureau avec HUD. Détail : [`nimbus/windows-agent/README.md`](nimbus/windows-agent/README.md). Control UI → Apps → **Download Windows Agent** (asset GitHub `latest`, ou fichier local `/nimbus-agent/NimbusAgent-Setup-x64.exe` sur l'hôte Gateway).
+
+```bash
+node --test nimbus/windows-agent/test/*.test.js
+node nimbus/windows-agent/cli.mjs phrase --text "ouvre le Bloc-notes et écris hello"
+```
 
 ---
 
@@ -296,7 +308,7 @@ L'état persistant (`~/.openclaw`, `~/.nimbus`) n'est jamais supprimé par ces c
 
 ## Ce qui n'est pas prêt
 
-Pas de voix en direct, pas de calendrier, pas d'intégration Docker dans la couche Nimbus. Ces chemins ont été supprimés plutôt que livrés comme des interfaces de démonstration. Les plugins voix et calendrier d'OpenClaw restent configurables depuis la doc amont ; cette couche ne prétend pas les avoir câblés.
+Pas de calendrier, pas d'intégration Docker dans la couche Nimbus. La voix en direct et le contrôle bureau vivent dans l'agent Windows (PTT + HUD), pas dans `nimbus/src`. Les plugins voix et calendrier d'OpenClaw restent configurables depuis la doc amont ; cette couche ne prétend pas les avoir câblés.
 
 Ce fork ne fait pas tourner la suite complète d'actions GitHub d'OpenClaw (runners d'organisation, GitHub App, CodeQL). Le check qui compte ici est [`.github/workflows/nimbus.yml`](.github/workflows/nimbus.yml) ; les workflows amont sont archivés dans `.github/upstream-workflows/`.
 

@@ -29,6 +29,43 @@
   margin-top: 26px;
 }
 
+.apps-nimbus-download {
+  margin-top: 22px;
+}
+
+.apps-nimbus-download__card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+}
+
+.apps-nimbus-download__title {
+  margin: 0 0 6px;
+  color: var(--text-strong);
+  font-size: var(--control-ui-text-md, 15px);
+  font-weight: 600;
+}
+
+.apps-nimbus-download__desc {
+  margin: 0;
+  max-width: 520px;
+  color: var(--muted);
+  font-size: var(--control-ui-text-sm);
+  line-height: 1.45;
+}
+
+.apps-nimbus-download__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* Mirrors .settings-section__heading typography; cards intentionally do not
    sit inside a .settings-group surface (one level of elevation only). */
 .apps-section__heading {

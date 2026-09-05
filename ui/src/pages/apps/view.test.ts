@@ -4,8 +4,15 @@ import { render } from "lit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { i18n } from "../../i18n/index.ts";
 import { renderApps } from "./view.ts";
+import {
+  nimbusWindowsAgentDocsUrl,
+  nimbusWindowsAgentGithubDownloadUrl,
+  nimbusWindowsAgentGithubReleasesUrl,
+} from "../../lib/nimbus-windows-agent.ts";
 
 const EXPECTED_EXTERNAL_HREFS = [
+  nimbusWindowsAgentGithubDownloadUrl(),
+  nimbusWindowsAgentGithubReleasesUrl(),
   "https://apps.apple.com/app/openclaw-ai-that-does-things/id6780396132",
   "https://docs.openclaw.ai/platforms/ios",
   "https://play.google.com/store/apps/details?id=ai.openclaw.app",
@@ -14,8 +21,8 @@ const EXPECTED_EXTERNAL_HREFS = [
   "https://docs.openclaw.ai/platforms/android",
   "https://github.com/openclaw/openclaw/releases",
   "https://docs.openclaw.ai/platforms/macos",
-  "https://github.com/openclaw/openclaw-windows-node/releases/latest",
-  "https://docs.openclaw.ai/platforms/windows",
+  nimbusWindowsAgentGithubDownloadUrl(),
+  nimbusWindowsAgentDocsUrl(),
   "https://github.com/openclaw/openclaw/releases",
   "https://docs.openclaw.ai/platforms/linux",
   "https://chromewebstore.google.com/detail/openclaw/kcdjddhmeafeomebliikmbpblkmkfoig",
@@ -37,6 +44,15 @@ describe("renderApps", () => {
     return container;
   }
 
+  it("offers a Nimbus Windows Agent download before the store cards", () => {
+    const container = renderIntoContainer();
+    const banner = container.querySelector(".apps-nimbus-download");
+    expect(banner?.querySelector(".apps-nimbus-download__title")?.textContent).toBe("Windows");
+    const primary = banner?.querySelector<HTMLAnchorElement>("a.apps-card__cta--primary");
+    expect(primary?.getAttribute("href")).toBe(nimbusWindowsAgentGithubDownloadUrl());
+    expect(primary?.textContent).toContain("Download Windows Agent");
+  });
+
   it("renders the hero and one heading per section", () => {
     const container = renderIntoContainer();
     expect(container.querySelector(".apps-hero__title")?.textContent).toBe(
@@ -49,6 +65,7 @@ describe("renderApps", () => {
       (heading) => heading.textContent,
     );
     expect(headings).toEqual([
+      "Download Windows Agent",
       "On your phone",
       "On your wrist",
       "On your desktop",

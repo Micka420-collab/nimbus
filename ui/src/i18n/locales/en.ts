@@ -3630,6 +3630,9 @@ export const en: TranslationMap = {
     ctaAppStore: "App Store",
     ctaPlayStore: "Google Play",
     ctaDownload: "Download",
+    ctaDownloadWindowsAgent: "Download Windows Agent",
+    nimbusWindowsTagline:
+      "Install the Nimbus companion, pair it as a node, then use visible voice PTT and Astra-class desktop control.",
     ctaDocs: "Docs",
     ctaSetupGuide: "Setup guide",
     ctaChromeWebStore: "Chrome Web Store",
@@ -3660,7 +3663,7 @@ export const en: TranslationMap = {
       },
       windows: {
         title: "Windows",
-        desc: "The Windows companion connects your PC as an OpenClaw device.",
+        desc: "Nimbus Windows Agent — pair as a node, talk with a visible mic, and control the desktop with a HUD.",
       },
       linux: {
         title: "Linux",

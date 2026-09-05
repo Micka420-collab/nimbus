@@ -1,0 +1,26 @@
+appId: ai.nimbus.windows-agent
+productName: Nimbus Windows Agent
+artifactName: NimbusAgent-Setup-${arch}.exe
+directories:
+  output: dist
+files:
+  - app/**/*
+  - src/**/*
+  - package.json
+asar: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Nimbus Windows Agent
+  uninstallDisplayName: Nimbus Windows Agent
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  installerLanguages:
+    - fr_FR
+    - en_US

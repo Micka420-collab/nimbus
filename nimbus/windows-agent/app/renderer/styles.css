@@ -1,0 +1,97 @@
+:root {
+  color-scheme: dark;
+  --bg: #12141a;
+  --card: #1b1e27;
+  --text: #e8e6e3;
+  --muted: #9a958c;
+  --accent: #c4b5a0;
+  --live: #d25b4c;
+  --ok: #6f9e7a;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 20px 22px 28px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sub,
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+header {
+  margin-bottom: 18px;
+}
+
+section {
+  background: var(--card);
+  border: 1px solid #2a2e38;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+input {
+  background: #10131a;
+  color: var(--text);
+  border: 1px solid #343946;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+button {
+  background: #2a241c;
+  color: var(--accent);
+  border: 1px solid #4a4338;
+  border-radius: 6px;
+  padding: 7px 11px;
+  margin-right: 6px;
+  margin-top: 4px;
+}
+
+.mic[data-live="on"] {
+  color: var(--live);
+  font-weight: 650;
+}
+
+.mic[data-live="off"] {
+  color: var(--muted);
+}
+
+.status {
+  min-height: 1.2em;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#trayStatus {
+  margin: 8px 0 0;
+  color: var(--accent);
+}

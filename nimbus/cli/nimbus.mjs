@@ -85,7 +85,8 @@ Hors-ligne / confiance / park / permissions
   permissions apply [--config <openclaw.json>] [--mode deny] [--workspace <dir>] [--force]
 
 État : --state <dir> ou NIMBUS_STATE_DIR (défaut ~/.nimbus).
-Voix, calendrier, jumeau Docker : non implémentés. Pas de HUD de démo.
+Calendrier / jumeau Docker : non implémentés.
+Windows Agent : node nimbus/windows-agent/cli.mjs help
 `);
 }
 

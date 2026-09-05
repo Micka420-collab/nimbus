@@ -1,0 +1,71 @@
+name: Nimbus Windows Agent
+
+on:
+  push:
+    paths:
+      - "nimbus/windows-agent/**"
+      - ".github/workflows/nimbus-windows-agent.yml"
+    tags:
+      - "nimbus-agent-v*"
+  pull_request:
+    paths:
+      - "nimbus/windows-agent/**"
+      - ".github/workflows/nimbus-windows-agent.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  protocol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Protocol tests
+        run: node --test nimbus/windows-agent/test/*.test.js
+      - name: Pairing CLI writes state
+        run: |
+          STATE="${RUNNER_TEMP}/nimbus-windows-agent"
+          node nimbus/windows-agent/cli.mjs pair save --state "$STATE" --url "https://gw.example:18789" --token "ci-token"
+          test -f "$STATE/windows-agent.json"
+          grep -q "wss://gw.example:18789" "$STATE/windows-agent.json"
+
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install packager
+        working-directory: nimbus/windows-agent
+        run: npm install
+      - name: Protocol tests
+        working-directory: nimbus/windows-agent
+        run: npm test
+      - name: Build NSIS installer
+        working-directory: nimbus/windows-agent
+        run: npm run dist
+      - name: Rename artifact
+        working-directory: nimbus/windows-agent
+        shell: pwsh
+        run: |
+          $built = Get-ChildItem dist -Filter "NimbusAgent-Setup-*.exe" | Select-Object -First 1
+          if (-not $built) { throw "Installer missing in dist/" }
+          Copy-Item $built.FullName "dist/NimbusAgent-Setup-x64.exe" -Force
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NimbusAgent-Setup-x64
+          path: nimbus/windows-agent/dist/NimbusAgent-Setup-x64.exe
+      - name: Attach to tagged release
+        if: startsWith(github.ref, 'refs/tags/nimbus-agent-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "nimbus/windows-agent/dist/NimbusAgent-Setup-x64.exe" --clobber
