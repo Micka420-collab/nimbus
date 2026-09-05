@@ -1,7 +1,6 @@
 /**
- * Constrained desktop program — code-execution *style*, not eval.
- * OpenAI Astra docs lean toward a code harness; this node accepts a closed
- * step list instead of arbitrary JS/Python so we never ship an exploit shell.
+ * Constrained desktop/browser program — code-execution *style*, not eval.
+ * Closed step list only. Unknown ops fail closed.
  */
 
 import { parseComputerAction } from "./computer-actions.js";
@@ -16,6 +15,8 @@ export const HARNESS_OPS = Object.freeze([
   "key",
   "scroll",
   "wait",
+  "goto",
+  "navigate",
 ]);
 
 const APP_ALIASES = Object.freeze({
@@ -25,8 +26,15 @@ const APP_ALIASES = Object.freeze({
   "bloc notes": "notepad",
   calc: "calc",
   calculatrice: "calc",
+  chrome: "chrome",
+  edge: "msedge",
+  firefox: "firefox",
 });
 
+/**
+ * @param {unknown} raw
+ * @returns {{ ok: boolean, steps?: object[], brief?: string, code?: string, message?: string }}
+ */
 export function parseHarnessProgram(raw) {
   const program = typeof raw === "string" ? safeJson(raw) : raw;
   if (!program || typeof program !== "object") {
@@ -47,36 +55,6 @@ export function parseHarnessProgram(raw) {
   return { ok: true, steps: compiled, brief: typeof program.brief === "string" ? program.brief : "" };
 }
 
-/**
- * Small, honest phrase compiler for the operator journeys we document.
- * Not a general planner — unknown text fails closed.
- */
-export function compileDesktopPhrase(text) {
-  const source = String(text ?? "").trim();
-  if (!source) {
-    return { ok: false, code: "empty_brief", message: "Task brief required." };
-  }
-  const lower = source.toLowerCase();
-  const launchMatch = lower.match(
-    /(?:ouvre|open|lance|launch)\s+(?:le\s+|la\s+|l')?(bloc[-\s]?notes|notepad|calculatrice|calc)/u,
-  );
-  const typeMatch = source.match(/(?:[eé]cris|write|type)\s+["«]?(.+?)["»]?$/iu);
-  if (!launchMatch) {
-    return {
-      ok: false,
-      code: "unsupported_brief",
-      message: "No constrained harness match. Use structured computer.act steps instead.",
-    };
-  }
-  const app = APP_ALIASES[launchMatch[1].replace(/\s+/g, "-")] ?? APP_ALIASES[launchMatch[1]];
-  const steps = [{ action: "launch_app", app }];
-  if (typeMatch) {
-    steps.push({ action: "wait", duration: 0.4 });
-    steps.push({ action: "type", text: typeMatch[1].trim() });
-  }
-  return { ok: true, brief: source, steps };
-}
-
 function mapStep(step) {
   if (!step || typeof step !== "object") {
     return { ok: false, code: "invalid_program", message: "Each step must be an object." };
@@ -87,6 +65,9 @@ function mapStep(step) {
   }
   if (op === "launch" || op === "launch_app") {
     return parseComputerAction({ action: "launch_app", app: normalizeApp(step.app ?? step.target) });
+  }
+  if (op === "goto" || op === "navigate") {
+    return parseComputerAction({ action: "goto", url: step.url ?? step.href ?? step.target });
   }
   if (op === "click") {
     return parseComputerAction({

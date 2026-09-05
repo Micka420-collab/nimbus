@@ -9,6 +9,7 @@ files:
   - package.json
 asar: true
 win:
+  icon: app/icon.png
   target:
     - target: nsis
       arch:

@@ -54,6 +54,109 @@ export function createMemoryTransport() {
   return { client, server };
 }
 
+/**
+ * Retries connect after a closed socket. Token/auth errors stay rejected (no loop).
+ *
+ * @param {object} options same as createGatewaySession plus reconnectDelaysMs
+ */
+export function createReconnectingSession(options = {}) {
+  const delays = options.reconnectDelaysMs ?? [1000, 2000, 4000, 8000];
+  const wait = options.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  let stopped = false;
+  let attempt = 0;
+  let inFlight = false;
+  let lastReconnectError = null;
+
+  const inner = createGatewaySession({
+    ...options,
+    onStatus(snapshot) {
+      options.onStatus?.(decorate(snapshot));
+      if (stopped || inFlight) {
+        return;
+      }
+      if (snapshot.status === "offline" && options.pairing) {
+        void schedule();
+      }
+    },
+  });
+
+  function decorate(snapshot) {
+    if (!lastReconnectError) {
+      return snapshot;
+    }
+    return { ...snapshot, lastError: lastReconnectError };
+  }
+
+  async function schedule() {
+    if (stopped || inFlight) {
+      return;
+    }
+    if (attempt >= delays.length) {
+      lastReconnectError = {
+        ok: false,
+        code: "reconnect_exhausted",
+        message: "Reconnexion épuisée. Vérifie le Gateway et réessaie.",
+      };
+      options.onStatus?.(decorate({ ...inner.snapshot(), status: "offline" }));
+      return;
+    }
+    inFlight = true;
+    const delay = delays[attempt];
+    attempt += 1;
+    await wait(delay);
+    if (stopped) {
+      inFlight = false;
+      return;
+    }
+    const result = await inner.connect(options.pairing);
+    inFlight = false;
+    if (stopped) {
+      return;
+    }
+    if (result.status === "connected") {
+      attempt = 0;
+      lastReconnectError = null;
+      return;
+    }
+    if (result.status === "rejected") {
+      stopped = true;
+      lastReconnectError = {
+        ok: false,
+        code: result.code ?? "connect_rejected",
+        message: result.message ?? "Jeton refusé. Régénère l'appairage.",
+      };
+      options.onStatus?.(decorate(result));
+      return;
+    }
+    if (result.status === "offline") {
+      lastReconnectError = {
+        ok: false,
+        code: result.code ?? "socket_failed",
+        message: result.message ?? "Gateway injoignable. Nouvelle tentative…",
+      };
+      void schedule();
+    }
+  }
+
+  return {
+    ...inner,
+    snapshot() {
+      return decorate(inner.snapshot());
+    },
+    async connect(pairing) {
+      stopped = false;
+      options.pairing = pairing;
+      attempt = 0;
+      lastReconnectError = null;
+      return inner.connect(pairing);
+    },
+    close() {
+      stopped = true;
+      return inner.close();
+    },
+  };
+}
+
 export function createGatewaySession(options = {}) {
   let status = "disconnected";
   let hello = null;
@@ -166,7 +269,7 @@ export function createGatewaySession(options = {}) {
         type: "res",
         id: "",
         ok: false,
-        error: { code: "offline", message: "Not connected to the Gateway." },
+        error: { code: "offline", message: "Pas de session Gateway. Réappaire ou attends la reconnexion." },
       });
     }
     const id = `nimbus-${nextId}`;
@@ -208,13 +311,13 @@ export function createGatewaySession(options = {}) {
       return setStatus("offline", {
         ok: false,
         code: "socket_failed",
-        message: error?.message ?? "Could not open the Gateway socket.",
+        message: error?.message ?? "Impossible d'ouvrir la socket Gateway.",
       });
     }
     socket.onMessage(handleFrame);
     socket.onClose?.(() => {
       if (status === "connected" || status === "connecting") {
-        setStatus("offline", { ok: false, code: "socket_closed", message: "Gateway socket closed." });
+        setStatus("offline", { ok: false, code: "socket_closed", message: "Socket Gateway fermée. Reconnexion…" });
       }
     });
     const response = await request("connect", built.params);
@@ -222,7 +325,7 @@ export function createGatewaySession(options = {}) {
       return setStatus("rejected", {
         ok: false,
         code: response.error?.code ?? "connect_rejected",
-        message: response.error?.message ?? "Gateway rejected the node connect.",
+        message: response.error?.message ?? "Le Gateway a refusé l'appairage. Approuve le nœud ou régénère le jeton.",
       });
     }
     const payload = response.payload && typeof response.payload === "object" ? response.payload : {};
@@ -234,7 +337,7 @@ export function createGatewaySession(options = {}) {
     return setStatus("rejected", {
       ok: false,
       code: "bad_hello",
-      message: "Gateway did not return hello-ok.",
+        message: "Le Gateway n'a pas renvoyé hello-ok.",
     });
   }
 

@@ -64,8 +64,10 @@ Usage:
   download-url
   model apply --config <openclaw.json> --model openai/<id> [--force]
 
-La voix n'est pas de l'audio Astra. STT/TTS échoue sans clé.
+La voix n'est pas de l'audio Astra. STT/TTS échoue sans OPENAI_API_KEY
+(ou NIMBUS_STT_URL / NIMBUS_TTS_URL). Conversation continue : démarrage explicite.
 Le contrôle bureau exige un HUD visible. Échap pour arrêter.
+Modèle optionnel : openai/gpt-6-astra via \`model apply\`.
 `);
 }
 

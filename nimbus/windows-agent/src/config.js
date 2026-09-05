@@ -29,10 +29,14 @@ export function savePairingConfig(stateDir, input, extras = {}) {
   if (!parsed.ok) {
     return parsed;
   }
+  const existing = loadAgentConfig(stateDir);
   const record = pairingConfigRecord(parsed, {
     ...extras,
     pairedAt: extras.pairedAt ?? new Date().toISOString(),
   });
+  if (existing.ok && existing.config.voice) {
+    record.voice = existing.config.voice;
+  }
   const path = configPath(stateDir);
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;

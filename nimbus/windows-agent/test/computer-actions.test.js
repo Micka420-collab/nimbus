@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createActionExecutor, parseComputerAction } from "../src/computer-actions.js";
-import { compileDesktopPhrase, parseHarnessProgram } from "../src/harness.js";
+import { parseHarnessProgram } from "../src/harness.js";
+import { compileDesktopPhrase } from "../src/planner.js";
 import { createComputerLoop } from "../src/computer-loop.js";
 import { authorizeComputerAction } from "../src/approvals.js";
 import { planWindowsCommand } from "../src/windows-input.js";

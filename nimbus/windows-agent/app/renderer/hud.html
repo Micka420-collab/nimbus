@@ -2,57 +2,51 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <title>Nimbus contrôle le bureau</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+    />
+    <title>Nimbus contrôle</title>
     <style>
       html,
       body {
         margin: 0;
-        background: transparent;
-        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #11161f;
+        color: #f3f4f6;
+        font: 14px/1.4 "Segoe UI", system-ui, sans-serif;
       }
-      #bar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 64px;
-        padding: 0 16px;
-        background: #8b2e24;
-        color: #fff8f4;
-        border-radius: 10px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      main {
+        padding: 10px 14px;
       }
       strong {
-        font-size: 15px;
+        color: #ffb020;
       }
-      span {
-        font-size: 12px;
-        opacity: 0.9;
+      #brief {
+        color: #9aa3b2;
+        margin: 6px 0;
+        min-height: 1.2em;
       }
       button {
-        background: #fff8f4;
-        color: #8b2e24;
-        border: 0;
-        border-radius: 6px;
-        padding: 6px 10px;
-        font-weight: 650;
+        margin-right: 8px;
       }
     </style>
   </head>
   <body>
-    <div id="bar">
-      <div>
-        <strong>Nimbus contrôle le bureau</strong><br />
-        <span id="status">En cours — Échap pour arrêter</span>
-      </div>
-      <button id="stop" type="button">Arrêter</button>
-    </div>
+    <main>
+      <strong>Nimbus contrôle le bureau</strong>
+      <p id="brief"></p>
+      <button type="button" id="approve">Approuver</button>
+      <button type="button" id="deny">Refuser</button>
+      <button type="button" id="abort">Arrêter (Échap)</button>
+    </main>
     <script>
-      const status = document.getElementById("status");
-      window.nimbusAgent.onState((state) => {
-        status.textContent = `${state.astra?.hud?.statusLabel ?? ""} — ${state.astra?.brief ?? ""}`.trim();
-      });
-      document.getElementById("stop").addEventListener("click", () => {
-        window.nimbusAgent.astra({ op: "abort" });
+      const briefEl = document.getElementById("brief");
+      const hud = window.nimbusHud;
+      document.getElementById("approve").onclick = () => hud?.approve();
+      document.getElementById("deny").onclick = () => hud?.deny();
+      document.getElementById("abort").onclick = () => hud?.abort();
+      hud?.onState((snapshot) => {
+        briefEl.textContent = snapshot?.astra?.brief ?? "";
       });
     </script>
   </body>

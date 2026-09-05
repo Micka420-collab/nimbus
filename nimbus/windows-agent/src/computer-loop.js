@@ -1,28 +1,43 @@
 import { astraHud } from "./labels.js";
 import { authorizeComputerAction, intentAligned } from "./approvals.js";
 import { createActionExecutor } from "./computer-actions.js";
-import { compileDesktopPhrase, parseHarnessProgram } from "./harness.js";
-
-const STATUSES = new Set(["idle", "running", "waiting_approval", "aborted"]);
+import { parseHarnessProgram } from "./harness.js";
+import { compileDesktopPhrase, planWithGatewayModel } from "./planner.js";
+import { expectsVisualChange, hashObservationBytes, observationChanged } from "./observation.js";
 
 /**
  * Observe → decide → validate → execute → re-observe.
- * Decision is supplied by the caller (gateway / model). This owner validates
- * and executes; it never invents a silent desktop action.
+ * Hashes screenshots and retries once on stale UI.
+ *
+ * Failure modes: aborted, needs_human, stale_ui, hud_required, exploit_blocked.
  */
 export function createComputerLoop(options = {}) {
   const executor = createActionExecutor(options.adapter ?? recordingAdapter());
+  const trustGate = options.trustGate;
   let status = "idle";
   let brief = "";
   let frameId = null;
   let aborted = false;
   let lastObservation = null;
+  let pendingAction = null;
   const log = [];
 
   const snapshot = () => {
-    const state = { status, brief, frameId, aborted, lastObservation };
+    const state = { status, brief, frameId, aborted, lastObservation, pendingAction };
     return { ...state, hud: astraHud(state) };
   };
+
+  function authorize(action, extras) {
+    const alignment = intentAligned(brief, action);
+    const gateInput = {
+      action,
+      approved: extras.approved === true,
+      computerControlEnabled: extras.computerControlEnabled !== false,
+      hudVisible: extras.hudVisible === true || status === "running" || status === "waiting_approval",
+    };
+    const gate = trustGate?.authorize(gateInput) ?? authorizeComputerAction(gateInput);
+    return { alignment, gate };
+  }
 
   return {
     snapshot,
@@ -36,6 +51,7 @@ export function createComputerLoop(options = {}) {
     abort() {
       aborted = true;
       status = "aborted";
+      pendingAction = null;
       log.push({ phase: "aborted", brief });
       return snapshot();
     },
@@ -45,6 +61,7 @@ export function createComputerLoop(options = {}) {
       aborted = false;
       frameId = null;
       lastObservation = null;
+      pendingAction = null;
       return snapshot();
     },
 
@@ -53,16 +70,19 @@ export function createComputerLoop(options = {}) {
         return fail("aborted", "Human aborted desktop control.");
       }
       status = "running";
+      const bytes = observation?.imageBase64 ?? observation?.bytes;
+      const hash = observation?.hash ?? hashObservationBytes(bytes);
       const nextFrame =
         observation?.frameId ?? observation?.displayFrameId ?? `frame-${log.length + 1}`;
       frameId = nextFrame;
       lastObservation = {
         frameId,
+        hash,
         width: observation?.width ?? null,
         height: observation?.height ?? null,
         note: observation?.note ?? "screenshot",
       };
-      log.push({ phase: "observe", frameId });
+      log.push({ phase: "observe", frameId, hash });
       return { ok: true, phase: "observe", ...snapshot() };
     },
 
@@ -80,27 +100,31 @@ export function createComputerLoop(options = {}) {
       if (aborted) {
         return fail("aborted", "Human aborted desktop control.");
       }
-      const alignment = intentAligned(brief, action);
-      const gate = authorizeComputerAction({
-        action,
-        approved: extras.approved === true,
-        computerControlEnabled: extras.computerControlEnabled !== false,
-        hudVisible: extras.hudVisible === true || status === "running",
-      });
+      const { alignment, gate } = authorize(action, extras);
       if (!alignment.aligned && extras.approved !== true) {
         status = "waiting_approval";
+        pendingAction = action;
         log.push({ phase: "validate", ok: false, reason: alignment.reason });
-        return { ok: false, phase: "validate", reason: alignment.reason, ...snapshot() };
+        return { ok: false, phase: "validate", reason: alignment.reason, pendingAction, ...snapshot() };
       }
       if (!gate.allowed) {
         if (gate.reason === "needs_human") {
           status = "waiting_approval";
+          pendingAction = action;
         }
         log.push({ phase: "validate", ok: false, reason: gate.reason });
-        return { ok: false, phase: "validate", reason: gate.reason, classification: gate.classification, ...snapshot() };
+        return {
+          ok: false,
+          phase: "validate",
+          reason: gate.reason,
+          classification: gate.classification,
+          trust: gate.trust,
+          pendingAction,
+          ...snapshot(),
+        };
       }
-      log.push({ phase: "validate", ok: true });
-      return { ok: true, phase: "validate", ...snapshot() };
+      log.push({ phase: "validate", ok: true, reason: gate.reason });
+      return { ok: true, phase: "validate", trust: gate.trust, ...snapshot() };
     },
 
     async execute(action, extras = {}) {
@@ -109,24 +133,79 @@ export function createComputerLoop(options = {}) {
         return validated;
       }
       status = "running";
+      pendingAction = null;
       log.push({ phase: "execute", action: action.action ?? action.op });
-      const result = await executor.run(action, { frameId, aborted });
+      const before = lastObservation;
+      const result = await executor.run(action, {
+        frameId,
+        aborted,
+        browser: extras.browser ?? options.browser,
+      });
       if (!result.ok) {
         return { ...result, phase: "execute", ...snapshot() };
       }
+      if (typeof extras.capture === "function" && expectsVisualChange(action)) {
+        const seen = await extras.capture();
+        await this.reobserve({ ...seen, bytes: seen.imageBase64 ?? seen.bytes });
+        if (!observationChanged(before, lastObservation) && extras.retryStale !== false) {
+          if (!extras._retried) {
+            log.push({ phase: "stale_retry", hash: lastObservation?.hash });
+            return this.execute(action, { ...extras, _retried: true });
+          }
+          return {
+            ok: false,
+            code: "stale_ui",
+            message: "L'interface n'a pas changé après l'action. Contrôle interrompu.",
+            phase: "execute",
+            ...snapshot(),
+          };
+        }
+      }
+      if (extras.approved === true) {
+        trustGate?.record(action, "approve");
+      }
       return { ok: true, phase: "execute", result, ...snapshot() };
+    },
+
+    async approvePending(extras = {}) {
+      if (!pendingAction) {
+        return fail("no_pending", "Aucune étape en attente.");
+      }
+      return this.execute(pendingAction, { ...extras, approved: true, hudVisible: true });
+    },
+
+    denyPending() {
+      pendingAction = null;
+      status = "idle";
+      trustGate?.record({ action: "computer" }, "reject");
+      return snapshot();
     },
 
     async reobserve(observation) {
       const seen = await this.observe(observation);
       if (seen.ok) {
-        log.push({ phase: "reobserve", frameId });
+        log.push({ phase: "reobserve", frameId, hash: lastObservation?.hash });
       }
       return { ...seen, phase: seen.ok ? "reobserve" : seen.phase };
     },
 
     compileBrief(text) {
       return compileDesktopPhrase(text ?? brief);
+    },
+
+    async plan(text, extras = {}) {
+      const local = compileDesktopPhrase(text ?? brief);
+      if (local.ok) {
+        return local;
+      }
+      if (typeof extras.sendChat === "function") {
+        return planWithGatewayModel({
+          brief: text ?? brief,
+          sendChat: extras.sendChat,
+          observation: lastObservation,
+        });
+      }
+      return local;
     },
   };
 }

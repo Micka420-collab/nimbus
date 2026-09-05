@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, desktopCapturer } from "electron";
+import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, desktopCapturer, session } from "electron";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -7,16 +7,19 @@ import {
   LABELS,
   buildConnectParams,
   createComputerLoop,
-  createGatewaySession,
+  createComputerTrustGate,
+  createReconnectingSession,
   createSpeechFetch,
+  createVoicePipeline,
   createVoiceSession,
   createWindowsAdapter,
   dispatchNodeInvoke,
+  hashObservationBytes,
   loadAgentConfig,
   mergeAgentConfig,
+  normalizeVoiceSettings,
   openWebSocketTransport,
   pairingFromConfig,
-  runVoiceTurn,
   savePairingConfig,
   speechReadiness,
 } from "../src/index.js";
@@ -26,8 +29,21 @@ const STATE = process.env.NIMBUS_STATE_DIR ?? join(homedir(), ".nimbus");
 mkdirSync(STATE, { recursive: true });
 
 const speechFetch = createSpeechFetch();
-const voice = createVoiceSession();
+const trustGate = createComputerTrustGate(STATE);
+const voice = createVoiceSession({
+  settings: normalizeVoiceSettings(loadAgentConfig(STATE).config?.voice),
+});
+const pipeline = createVoicePipeline({
+  voice,
+  fetchImpl: speechFetch,
+  env: process.env,
+  sendChat: (text) => ensureSession().sendChat(text),
+  onTtsChunk: (chunk) => {
+    broadcast({ speakChunk: Buffer.from(chunk).toString("base64") });
+  },
+});
 const loop = createComputerLoop({
+  trustGate,
   adapter: createWindowsAdapter({
     capture: captureScreen,
   }),
@@ -44,8 +60,8 @@ function preloadPath() {
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 520,
-    height: 680,
+    width: 540,
+    height: 760,
     title: LABELS.appName,
     show: true,
     webPreferences: {
@@ -59,10 +75,10 @@ function createMainWindow() {
 
 function createHudWindow() {
   hudWindow = new BrowserWindow({
-    width: 420,
-    height: 72,
+    width: 480,
+    height: 140,
     frame: false,
-    transparent: true,
+    transparent: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
@@ -84,6 +100,20 @@ function trayMenu() {
     { label: statusLabel(), enabled: false },
     { type: "separator" },
     { label: LABELS.tray.open, click: () => mainWindow?.show() },
+    {
+      label: LABELS.tray.approve,
+      enabled: snap.status === "waiting_approval",
+      click: () => approvePending(),
+    },
+    {
+      label: LABELS.tray.deny,
+      enabled: snap.status === "waiting_approval",
+      click: () => {
+        loop.denyPending();
+        refreshTray();
+        broadcast();
+      },
+    },
     {
       label: LABELS.tray.stop,
       enabled: snap.status === "running" || snap.status === "waiting_approval",
@@ -109,10 +139,13 @@ function statusLabel() {
   if (session?.status === "connecting") {
     return LABELS.tray.pairing;
   }
-  if (session?.status === "rejected" || session?.status === "offline") {
-    return LABELS.tray.offline;
+  if (session?.status === "rejected") {
+    return LABELS.pair.rejected;
   }
-  return loadAgentConfig(STATE).ok ? LABELS.tray.offline : LABELS.tray.pairing;
+  if (session?.status === "offline") {
+    return LABELS.pair.offline;
+  }
+  return loadAgentConfig(STATE).ok ? LABELS.pair.offline : LABELS.tray.pairing;
 }
 
 function refreshTray() {
@@ -123,14 +156,17 @@ function refreshTray() {
 function abortControl() {
   loop.abort();
   hudWindow?.hide();
-  globalShortcut.unregister("Escape");
   refreshTray();
   broadcast();
 }
 
 function showHud() {
-  hudWindow?.showInactive();
-  globalShortcut.register("Escape", () => abortControl());
+  const snap = loop.snapshot();
+  if (snap.hud?.visible || snap.status === "waiting_approval" || snap.status === "running") {
+    hudWindow?.showInactive();
+    return;
+  }
+  hudWindow?.hide();
 }
 
 async function captureScreen() {
@@ -143,31 +179,63 @@ async function captureScreen() {
     return { ok: false, code: "no_screen", message: "Aucun écran capturable." };
   }
   const png = screen.thumbnail.toPNG();
+  const imageBase64 = png.toString("base64");
   return {
     ok: true,
     format: "png",
     width: screen.thumbnail.getSize().width,
     height: screen.thumbnail.getSize().height,
     displayFrameId: `display-${Date.now()}`,
-    imageBase64: png.toString("base64"),
+    imageBase64,
+    hash: hashObservationBytes(imageBase64),
   };
 }
 
 function currentState() {
+  const loaded = loadAgentConfig(STATE);
+  const sessionSnap = gateway?.snapshot() ?? { status: "disconnected", connected: false };
+  const astra = loop.snapshot();
+  const voiceSnap = voice.snapshot();
   return {
-    pairing: loadAgentConfig(STATE),
-    session: gateway?.snapshot() ?? { status: "disconnected", connected: false },
-    voice: voice.snapshot(),
-    astra: loop.snapshot(),
+    pairing: loaded,
+    session: sessionSnap,
+    voice: voiceSnap,
+    voiceSettings: voiceSnap.settings,
+    astra,
+    approvals: {
+      pending: astra.pendingAction ? [astra.pendingAction] : [],
+    },
     speech: speechReadiness(process.env),
+    lastError: errorText(sessionSnap.lastError),
     tray: statusLabel(),
   };
 }
 
+function errorText(error) {
+  if (!error) {
+    return "";
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return typeof error.message === "string" ? error.message : "";
+}
+
 function broadcast(extra = {}) {
   const payload = { ...currentState(), ...extra };
+  syncHud(payload.astra);
   mainWindow?.webContents.send("nimbus:state", payload);
   hudWindow?.webContents.send("nimbus:state", payload);
+}
+
+function syncHud(astra) {
+  if (astra?.hud?.visible || astra?.status === "waiting_approval" || astra?.status === "running") {
+    hudWindow?.showInactive();
+    return;
+  }
+  if (astra?.status === "idle" || astra?.status === "aborted") {
+    hudWindow?.hide();
+  }
 }
 
 function invokeHandlers() {
@@ -178,8 +246,13 @@ function invokeHandlers() {
         loop.reset();
       }
       showHud();
-      await loop.observe({ note: "gateway-snapshot" });
-      const ran = await loop.execute(body, { hudVisible: true, approved: body?.approved === true });
+      const shot = await captureScreen();
+      await loop.observe(shot);
+      const ran = await loop.execute(body, {
+        hudVisible: true,
+        approved: body?.approved === true,
+        capture: captureScreen,
+      });
       refreshTray();
       broadcast();
       return ran;
@@ -188,6 +261,9 @@ function invokeHandlers() {
     "talk.ptt.stop": () => voice.stopPtt(),
     "talk.ptt.cancel": () => voice.stopConversation(),
     "talk.speak": async (body) => {
+      if (voice.snapshot().phase !== "thinking") {
+        voice.hearFinal(body?.text ?? "");
+      }
       voice.agentReady(body?.text ?? "");
       const tts = await speechFetch({
         kind: "tts",
@@ -195,7 +271,9 @@ function invokeHandlers() {
         text: body?.text ?? "",
         language: "fr",
       });
-      voice.speakEnd();
+      if (voice.snapshot().phase === "speaking") {
+        voice.speakEnd();
+      }
       if (tts.ok && tts.audio) {
         broadcast({ speakAudio: Buffer.from(tts.audio).toString("base64") });
       }
@@ -208,10 +286,12 @@ function ensureSession() {
   if (gateway) {
     return gateway;
   }
-  gateway = createGatewaySession({
+  const loaded = loadAgentConfig(STATE);
+  gateway = createReconnectingSession({
     openSocket: openWebSocketTransport,
     invokeHandlers: invokeHandlers(),
     sessionKey: "main",
+    pairing: loaded.ok ? pairingFromConfig(loaded) : undefined,
     onStatus: () => {
       refreshTray();
       broadcast();
@@ -238,19 +318,32 @@ async function connectSaved() {
 }
 
 async function runVoiceFromPtt(extra = {}) {
-  const session = ensureSession();
   const audio = extra.audioBase64 ? Buffer.from(extra.audioBase64, "base64") : null;
-  const result = await runVoiceTurn({
-    voice,
-    audio,
-    env: process.env,
-    fetchImpl: speechFetch,
-    sendChat: (text) => session.sendChat(text),
-  });
-  if (result.ok && result.audio) {
-    broadcast({ speakAudio: Buffer.from(result.audio).toString("base64") });
+  return pipeline.runTurn({ audio });
+}
+
+async function approvePending() {
+  showHud();
+  const ran = await loop.approvePending({ hudVisible: true, capture: captureScreen });
+  refreshTray();
+  broadcast();
+  return ran;
+}
+
+function bindHotkey() {
+  globalShortcut.unregisterAll();
+  globalShortcut.register("Escape", () => abortControl());
+  const hotkey = voice.snapshot().settings.pttHotkey;
+  if (hotkey) {
+    globalShortcut.register(hotkey, () => {
+      if (voice.snapshot().phase === "speaking") {
+        pipeline.bargeIn();
+        broadcast({ bargeIn: true });
+        return;
+      }
+      mainWindow?.webContents.send("nimbus:hotkey", { kind: "ptt-toggle" });
+    });
   }
-  return result;
 }
 
 function bindIpc() {
@@ -288,13 +381,30 @@ function bindIpc() {
     if (op === "consent") {
       return voice.grantConsent();
     }
+    if (op === "mute") {
+      const result = extra.muted === false ? voice.unmute() : pipeline.mute();
+      broadcast();
+      return result;
+    }
+    if (op === "settings") {
+      const settings = voice.setSettings(extra).settings;
+      mergeAgentConfig(STATE, { voice: settings });
+      bindHotkey();
+      broadcast();
+      return settings;
+    }
+    if (op === "barge-in") {
+      const result = pipeline.bargeIn();
+      broadcast();
+      return result;
+    }
     if (op === "ptt-start") {
       return voice.startPtt();
     }
     if (op === "ptt-stop") {
       const turn = await runVoiceFromPtt(extra);
       refreshTray();
-      broadcast();
+      broadcast({ turn });
       return { ok: turn.ok, turn };
     }
     if (op === "conversation-start") {
@@ -310,32 +420,42 @@ function bindIpc() {
       abortControl();
       return loop.snapshot();
     }
+    if (payload?.op === "approve") {
+      return approvePending();
+    }
+    if (payload?.op === "deny") {
+      const snap = loop.denyPending();
+      refreshTray();
+      broadcast();
+      return snap;
+    }
     if (payload?.op === "brief") {
       loop.reset();
       loop.setBrief(payload.text);
       showHud();
-      await loop.observe({ note: "operator-brief" });
-      const compiled = loop.compileBrief(payload.text);
-      if (compiled.ok) {
-        for (const step of compiled.steps) {
-          const ran = await loop.execute(step, { hudVisible: true, approved: payload.approved === true });
+      const shot = await captureScreen();
+      await loop.observe(shot);
+      const planned = await loop.plan(payload.text, {
+        sendChat: (text) => ensureSession().sendChat(text),
+      });
+      if (planned.ok) {
+        for (const step of planned.steps) {
+          const ran = await loop.execute(step, {
+            hudVisible: true,
+            approved: payload.approved === true,
+            capture: captureScreen,
+          });
           if (!ran.ok) {
             refreshTray();
             broadcast();
             return ran;
           }
         }
-        await loop.reobserve({ note: "reobserve" });
+        await loop.reobserve(await captureScreen());
       }
       refreshTray();
       broadcast();
-      return { ok: compiled.ok, compiled, ...loop.snapshot() };
-    }
-    if (payload?.op === "approve") {
-      const ran = await loop.execute(payload.action, { hudVisible: true, approved: true });
-      refreshTray();
-      broadcast();
-      return ran;
+      return { ok: planned.ok, compiled: planned, ...loop.snapshot() };
     }
     return loop.snapshot();
   });
@@ -345,10 +465,14 @@ function bindIpc() {
 }
 
 app.whenReady().then(async () => {
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
+    callback(permission === "media" || permission === "display-capture");
+  });
   bindIpc();
   createMainWindow();
   createHudWindow();
   tray = new Tray(join(ROOT, "icon.png"));
+  bindHotkey();
   refreshTray();
   if (loadAgentConfig(STATE).ok) {
     await connectSaved();

@@ -12,9 +12,10 @@ Il manquait un compagnon Windows téléchargeable depuis le Dashboard, avec voix
 
 - `nimbus/windows-agent/` : nœud Electron, handshake Gateway réel (`connect` / `hello-ok` / `node.invoke`), installateur NSIS `NimbusAgent-Setup-x64.exe`, tests protocole Linux.
 - Apps / Control UI : **Download Windows Agent** vers le latest GitHub asset (ou `/nimbus-agent/` en local).
-- Voix : consentement + PTT. Pas d'audio Astra. Échec franc sans clé STT/TTS.
-- Contrôle bureau : actions structurées + harness contraint, HUD « Nimbus contrôle le bureau », Échap / Arrêter.
-- CI `nimbus-windows-agent.yml` sur `windows-latest`.
+- Voix : machine idle/muted/listening/thinking/speaking, PTT + conversation explicite, barge-in, appareils / niveau / mute / raccourci. STT/TTS OpenAI-compatible. Pas d'audio Astra. Échec franc sans clé.
+- Contrôle bureau : hash d'écran + un retry stale-UI, planner FR, plan JSON Gateway, Playwright `goto` si installé, trust overlay, HUD / plateau Approuver-Refuser, Échap.
+- Reconnexion Gateway ; jeton refusé visible en français (pas de boucle).
+- CI `nimbus-windows-agent.yml` sur `windows-latest` (NSIS unsigned — SmartScreen attendu).
 
 ### Inchangé
 

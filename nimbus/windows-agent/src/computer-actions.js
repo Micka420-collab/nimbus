@@ -1,3 +1,5 @@
+import { isBrowserAction, runBrowserAction } from "./browser-harness.js";
+
 export const STRUCTURED_ACTIONS = Object.freeze([
   "screenshot",
   "left_click",
@@ -12,6 +14,7 @@ export const STRUCTURED_ACTIONS = Object.freeze([
   "key",
   "wait",
   "launch_app",
+  "goto",
 ]);
 
 export const UNSUPPORTED_ACTIONS = Object.freeze([
@@ -82,6 +85,12 @@ export function parseComputerAction(raw) {
   if (name === "launch_app" && typeof action.app !== "string") {
     return { ok: false, code: "invalid_action", message: "launch_app needs app." };
   }
+  if (name === "goto") {
+    const url = String(action.url ?? "");
+    if (!/^https?:\/\//iu.test(url)) {
+      return { ok: false, code: "invalid_action", message: "goto needs an http(s) url." };
+    }
+  }
   if (POINT_ACTIONS.has(name) || name === "left_click_drag") {
     if (typeof action.frameId !== "string" || action.frameId.trim() === "") {
       return { ok: false, code: "stale_frame", message: "Coordinate actions must echo frameId." };
@@ -105,6 +114,9 @@ export function createActionExecutor(adapter) {
       }
       if (context.aborted) {
         return { ok: false, code: "aborted", message: "Human aborted desktop control." };
+      }
+      if (isBrowserAction(parsed.action)) {
+        return runBrowserAction(parsed.action, context.browser ?? {});
       }
       return adapter.execute(parsed.action, context);
     },

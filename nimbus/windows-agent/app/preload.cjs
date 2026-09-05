@@ -10,4 +10,26 @@ contextBridge.exposeInMainWorld("nimbusAgent", {
   onState: (fn) => {
     ipcRenderer.on("nimbus:state", (_event, payload) => fn(payload));
   },
+  onHotkey: (fn) => {
+    ipcRenderer.on("nimbus:hotkey", (_event, payload) => fn(payload));
+  },
+  onVoiceChunk: (fn) => {
+    ipcRenderer.on("nimbus:state", (_event, payload) => {
+      if (payload?.speakChunk) {
+        fn(payload.speakChunk);
+      }
+      if (payload?.speakAudio) {
+        fn(payload.speakAudio);
+      }
+    });
+  },
+});
+
+contextBridge.exposeInMainWorld("nimbusHud", {
+  approve: () => ipcRenderer.invoke("nimbus:astra", { op: "approve" }),
+  deny: () => ipcRenderer.invoke("nimbus:astra", { op: "deny" }),
+  abort: () => ipcRenderer.invoke("nimbus:astra", { op: "abort" }),
+  onState: (fn) => {
+    ipcRenderer.on("nimbus:state", (_event, payload) => fn(payload));
+  },
 });
