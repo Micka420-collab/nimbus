@@ -55,7 +55,7 @@ Usage:
 
 Profil / mémoire
   profile show | install --workspace <dir> [--force]
-  memory learn --key <k> --value <v> [--kind preference|correction|fact] [--zone perso|collegue|tech] [--ttl weekend|<heures>]
+  memory learn --key <k> --value <v> [--kind preference|correction|fact] [--zone perso|collegue|tech] [--ttl weekend|<heures>] [--force]
   memory forget --id <id> | --key <k> | --zone <z> | --weekend
   memory list [--query <q>] [--zone <z>]
 
@@ -111,15 +111,18 @@ function main() {
 
   if (command === "memory") {
     if (sub === "learn") {
-      print(
-        nimbus.memory.learn({
-          key: flags.key,
-          value: flags.value,
-          kind: flags.kind,
-          zone: flags.zone,
-          ttl: flags.ttl,
-        }),
-      );
+      const learned = nimbus.memory.learn({
+        key: flags.key,
+        value: flags.value,
+        kind: flags.kind,
+        zone: flags.zone,
+        ttl: flags.ttl,
+        force: Boolean(flags.force),
+      });
+      if (learned.warning) {
+        process.stderr.write(`${learned.warning}\n`);
+      }
+      print(learned);
       return;
     }
     if (sub === "forget") {

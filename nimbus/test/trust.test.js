@@ -40,6 +40,10 @@ test("colony uses trust to ready medium actions but still gates exec", () => {
   });
   assert.equal(write.step.status, "ready");
   assert.equal(write.step.trusted, true);
+  const ran = hive.runStep(write.step.id);
+  assert.equal(ran.ok, true);
+  assert.equal(ran.decision.reason, "trust_ready");
+  assert.notEqual(ran.decision.reason, "human_approved");
   const exec = hive.proposeStep({
     taskId: task.task.id,
     action: "exec",

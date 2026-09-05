@@ -18,7 +18,7 @@ Zones : `perso`, `collegue` (`kollega` accepté), `tech`. TTL : nombre d'heures 
 
 ## Secrets
 
-Les formes suivantes sont refusées (rien n'est écrit) : blocs PEM, clés AWS `AKIA…`, tokens GitHub/Slack, `sk-…`, Bearer, JWT, `password=` / `api_key=`.
+Les formes suivantes sont refusées (rien n'est écrit) : blocs PEM, clés AWS `AKIA…`, tokens GitHub/Slack, `sk-…`, Bearer, JWT, et toute assignation `password:` / `password=` / `api_key=` / `token=` / `secret:` **quelle que soit la valeur** (`password: azerty`, `password: Bitwarden`, `password: hunter2`). Une phrase sans assignation est acceptée : `mon gestionnaire est Bitwarden`, `j'utilise Bitwarden pour les mots de passe`. `--force` enregistre quand même, avec un avertissement français.
 
 Place les vrais secrets dans le magasin de credentials OpenClaw (`~/.openclaw/credentials/`), jamais dans `USER.md`, `MEMORY.md`, ou `~/.nimbus/memory.json`.
 
