@@ -2,7 +2,7 @@
 
 Journal de la couche personnelle. Le `CHANGELOG.md` OpenClaw reste généré pour les releases upstream — ne pas l'éditer ici.
 
-## 0.4.0 — 2026-09-05
+## 0.5.0 — 2026-09-05
 
 ### Pourquoi
 
@@ -20,6 +20,23 @@ Il manquait un compagnon Windows téléchargeable depuis le Dashboard, avec voix
 ### Inchangé
 
 - Overlay `nimbus/src` sans théâtre vocal. Mémoire, colonie, trust, park, permissions.
+
+## 0.4.0 — 2026-09-05
+
+### Pourquoi
+
+Le jeu de skills livré couvrait le Mac et des CLI ponctuelles. Rien pour piloter la maison, rien pour se servir d'un PC Windows appairé, rien sur la manière de conduire une application sans cliquer à l'aveugle.
+
+### Ajouté
+
+- `skills/home-assistant` : lecture d'état, appel de service et écriture d'automatisations via `hass-cli` ou l'API REST. Résolution obligatoire de l'`entity_id` avant d'agir, vérification après coup, tableau d'anti-patterns, et confirmation humaine imposée sur les actionneurs physiques (serrure, portail, alarme, chauffage, vanne).
+- `skills/windows-desktop` : préflight des trois conditions du `computer` tool, boucle observer → agir → réobserver avec discipline du `frameId`, cibles structurées avant les coordonnées, raccourcis Windows, refus explicite des surfaces non automatisables (UAC, Windows Hello, BitLocker), et rappel que l'écran est une entrée non fiable.
+- `skills/desktop-apps` : échelle des surfaces de contrôle (CLI/API > pont d'automatisation OS > éléments accessibilité > pixels), discipline du focus, références qui périment, attente sur un état plutôt que sur une horloge, et les décisions qui restent à l'utilisateur (licences, permissions, paiements).
+
+### Inchangé
+
+- Aucun fichier upstream modifié : les trois skills sont des ajouts sous `skills/`, chargés au rang « bundled ».
+- Couche `nimbus/` inchangée.
 
 ## 0.3.0 — 2026-09-05
 
