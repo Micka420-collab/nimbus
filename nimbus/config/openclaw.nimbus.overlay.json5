@@ -1,0 +1,18 @@
+{
+  // Overlay optionnel Nimbus. À fusionner à la main dans ~/.openclaw/openclaw.json.
+  // N'écrase pas une config existante : recopie seulement les clés que tu veux.
+  // validate=false
+  agents: {
+    defaults: {
+      // Pointe vers un workspace déjà amorcé, ou installe le profil :
+      // node nimbus/cli/nimbus.mjs profile install --workspace ~/.openclaw/workspace
+      workspace: "~/.openclaw/workspace",
+    },
+  },
+  tools: {
+    exec: {
+      // Défaut Nimbus : refus. OpenClaw upstream recommande souvent `auto` pour le code.
+      mode: "deny",
+    },
+  },
+}

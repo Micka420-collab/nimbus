@@ -111,6 +111,8 @@ USER.md
 # Keep packaged workspace templates visible to Git-aware remote syncs.
 !docs/reference/templates/IDENTITY.md
 !docs/reference/templates/USER.md
+!nimbus/profiles/nimbus/IDENTITY.md
+!nimbus/profiles/nimbus/USER.md
 # Exception: oc-path real-world test fixtures need to be tracked even
 # though the bare names match the local-untracked rule above.
 !extensions/oc-path/src/oc-path/tests/fixtures/real/IDENTITY.md
@@ -138,6 +140,7 @@ USER.md
 
 # Agent credentials and memory (NEVER COMMIT)
 /memory/
+/.nimbus/
 .agent/*.json
 !.agent/workflows/
 /local/

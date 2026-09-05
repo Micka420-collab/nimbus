@@ -9,15 +9,15 @@
   },
   "description": "Multi-channel AI gateway with extensible messaging integrations",
   "keywords": [],
-  "homepage": "https://github.com/Micka420-collab/nimpus#readme",
+  "homepage": "https://github.com/Micka420-collab/nimbus#readme",
   "bugs": {
-    "url": "https://github.com/Micka420-collab/nimpus/issues"
+    "url": "https://github.com/Micka420-collab/nimbus/issues"
   },
   "license": "MIT",
   "author": "OpenClaw Foundation (https://openclaw.org)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Micka420-collab/nimpus.git"
+    "url": "git+https://github.com/Micka420-collab/nimbus.git"
   },
   "bin": {
     "openclaw": "openclaw.mjs"

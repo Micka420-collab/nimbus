@@ -1,0 +1,17 @@
+{
+  "name": "@nimbus/layer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Optional local-first Nimbus overlay for this OpenClaw 2.0 fork. Not part of the OpenClaw runtime.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "nimbus": "node cli/nimbus.mjs"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  }
+}

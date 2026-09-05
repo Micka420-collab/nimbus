@@ -1,8 +1,20 @@
-# nimpus
+# Nimbus
 
-> **Fork privé** de [OpenClaw 2.0](https://github.com/openclaw/openclaw) (`v2026.8.1`) — base de travail pour personnalisations.
+Assistant personnel local de Micka, **fork de travail** d'[OpenClaw 2.0](https://github.com/openclaw/openclaw) (`v2026.8.1`).
 
-Upstream : [openclaw/openclaw@v2026.8.1](https://github.com/openclaw/openclaw/releases/tag/v2026.8.1) · Licence MIT conservée.
+La couche Nimbus (persona FR, mémoire, voix consentie, colonie, park, permissions) vit dans [`nimbus/`](nimbus/README.md). Elle est **additive** : les commandes OpenClaw ci-dessous restent le chemin d'install et d'exécution.
+
+```bash
+# Couche Nimbus (Node seul, sans pnpm)
+node --test nimbus/test/*.test.js
+node nimbus/cli/nimbus.mjs profile install --workspace ~/.openclaw/workspace
+```
+
+**Voix :** pas d'écoute furtive. Le micro démarre coupé ; consentement visible obligatoire. Détail : [nimbus/docs/voix-consentement.md](nimbus/docs/voix-consentement.md).
+
+Journal : [CHANGELOG-NIMBUS.md](CHANGELOG-NIMBUS.md). Licence MIT OpenClaw conservée.
+
+Upstream : [openclaw/openclaw@v2026.8.1](https://github.com/openclaw/openclaw/releases/tag/v2026.8.1)
 
 ---
 
