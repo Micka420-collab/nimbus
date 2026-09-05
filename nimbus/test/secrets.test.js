@@ -16,29 +16,28 @@ test("detects private key blocks and assignment-style secrets", () => {
   assert.equal(inspectSecretLeak("password: hunter2").leaked, true);
 });
 
-test("password manager prose is not a secret; --force is the loud escape hatch", () => {
-  const prose = "mon gestionnaire password: Bitwarden";
-  assert.equal(inspectSecretLeak(prose).leaked, false);
+test("credential assignment is refused regardless of value; prose without assignment is allowed", () => {
   const memory = createMemory(tempState("nimbus-secret-"));
-  const learned = memory.learn({ key: "gestionnaire", value: prose });
-  assert.equal(learned.ok, true);
-  assert.equal(memory.list().entries[0].value, prose);
 
-  const secret = "password: hunter2";
-  const refused = memory.learn({ key: "mdp", value: secret });
-  assert.equal(refused.ok, false);
-  assert.equal(refused.code, "secret_refused");
-  assert.match(refused.message, /--force/);
-  const forced = assertNoSecret(secret, "memory", { force: true });
+  for (const value of ["password: azerty", "password: Bitwarden", "password: hunter2"]) {
+    assert.equal(inspectSecretLeak(value).leaked, true, value);
+    const refused = memory.learn({ key: "mdp", value });
+    assert.equal(refused.ok, false, value);
+    assert.equal(refused.code, "secret_refused", value);
+    assert.match(refused.message, /--force/);
+  }
+
+  for (const prose of ["mon gestionnaire est Bitwarden", "j'utilise Bitwarden pour les mots de passe"]) {
+    assert.equal(inspectSecretLeak(prose).leaked, false, prose);
+    const learned = memory.learn({ key: "gestionnaire", value: prose });
+    assert.equal(learned.ok, true, prose);
+  }
+
+  const forced = assertNoSecret("password: Bitwarden", "memory", { force: true });
   assert.equal(forced.ok, true);
   assert.equal(forced.forced, true);
   assert.match(forced.warning, /ATTENTION/);
-  const stored = memory.learn({ key: "mdp", value: secret, force: true });
+  const stored = memory.learn({ key: "force-mdp", value: "password: Bitwarden", force: true });
   assert.equal(stored.ok, true);
   assert.equal(stored.forced, true);
-
-  const proseVault = "password: mon-coffre-perso";
-  assert.equal(inspectSecretLeak(proseVault).leaked, false);
-  const vault = memory.learn({ key: "coffre", value: proseVault });
-  assert.equal(vault.ok, true);
 });

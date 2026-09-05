@@ -10,25 +10,12 @@ const SECRET_PATTERNS = [
 
 const ASSIGNMENT_RE = /\b(?:api[_-]?key|secret|password|passwd|token)\s*[:=]\s*([^\s,;]+)/gi;
 
-const PASSWORD_MANAGERS = new Set([
-  "bitwarden",
-  "1password",
-  "onepassword",
-  "lastpass",
-  "keepass",
-  "keepassxc",
-  "vaultwarden",
-  "dashlane",
-  "nordpass",
-  "protonpass",
-  "proton-pass",
-  "keeper",
-  "enpass",
-]);
-
 /**
  * Local-only secret gate. Prefers refusing storage over redacting into a
  * still-useful leak. Does not phone home.
+ *
+ * Credential assignment form (`password: x`, `api_key=y`) is always refused,
+ * regardless of the value. Prose without that form is allowed.
  */
 export function inspectSecretLeak(text) {
   if (typeof text !== "string" || text.length === 0) {
@@ -65,7 +52,7 @@ export function assertNoSecret(text, field, options = {}) {
       field,
       matches: inspection.matches,
       message:
-        "Refus : la valeur ressemble à un secret. Nimbus ne l'enregistre pas. Si c'est un nom de gestionnaire (Bitwarden) et non un mot de passe, relance avec --force. Sinon place les identifiants dans le magasin de credentials local.",
+        "Refus : forme d'assignation credential (password=/token=/api_key=/secret:). Nimbus ne l'enregistre pas. Pour un gestionnaire, écris une phrase sans `password:`. Sinon relance avec --force. Place les identifiants dans le magasin de credentials local.",
     };
   }
   return { ok: true };
@@ -73,38 +60,5 @@ export function assertNoSecret(text, field, options = {}) {
 
 function hasSecretAssignment(text) {
   ASSIGNMENT_RE.lastIndex = 0;
-  let matched = false;
-  let hit;
-  while ((hit = ASSIGNMENT_RE.exec(text)) !== null) {
-    const keyword = String(hit[0].split(/[:=]/)[0] ?? "").toLowerCase();
-    if (!assignmentLooksLikeSecret(hit[1], keyword)) {
-      continue;
-    }
-    matched = true;
-  }
-  return matched;
-}
-
-function assignmentLooksLikeSecret(rawValue, keyword) {
-  const value = String(rawValue ?? "")
-    .replace(/^["'«]+|["'»]+$/g, "")
-    .trim();
-  const lowered = value.toLowerCase();
-  if (PASSWORD_MANAGERS.has(lowered)) {
-    return false;
-  }
-  if (SECRET_PATTERNS.some((pattern) => pattern.re.test(value))) {
-    return true;
-  }
-  const isPasswordLabel = keyword.includes("password") || keyword.includes("passwd");
-  if (isPasswordLabel && /^[\p{L}][\p{L}'-]*$/u.test(value) && !/\d/.test(value)) {
-    return false;
-  }
-  if (value.length >= 16) {
-    return true;
-  }
-  if (/\d/.test(value) || (/[A-Z]/.test(value) && /[a-z]/.test(value))) {
-    return true;
-  }
-  return !isPasswordLabel;
+  return ASSIGNMENT_RE.test(text);
 }
