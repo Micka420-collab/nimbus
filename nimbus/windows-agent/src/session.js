@@ -325,7 +325,7 @@ export function createGatewaySession(options = {}) {
       return setStatus("rejected", {
         ok: false,
         code: response.error?.code ?? "connect_rejected",
-        message: response.error?.message ?? "Le Gateway a refusé l'appairage. Approuve le nœud ou régénère le jeton.",
+        message: rejectedConnectMessage(response.error),
       });
     }
     const payload = response.payload && typeof response.payload === "object" ? response.payload : {};
@@ -374,6 +374,19 @@ export function createGatewaySession(options = {}) {
     close,
     handleFrame,
   };
+}
+
+function rejectedConnectMessage(error) {
+  const code = error?.code ?? "";
+  if (
+    code === "not_approved" ||
+    code === "unauthorized" ||
+    code === "forbidden" ||
+    code === "invalid_token"
+  ) {
+    return "Le Gateway a refusé l'appairage. Approuve le nœud ou régénère le jeton.";
+  }
+  return error?.message ?? "Le Gateway a refusé l'appairage. Approuve le nœud ou régénère le jeton.";
 }
 
 export function pairingFromConfig(pairing) {
