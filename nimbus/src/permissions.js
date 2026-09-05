@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+
 /**
  * Nimbus permission overlay. Default-deny.
  * Maps onto OpenClaw `tools.exec.mode` without changing OpenClaw core defaults.
@@ -18,8 +21,6 @@ export const ACTION_FAMILIES = Object.freeze({
   "timeline.read": { risk: "low", localSafe: true },
   "park.read": { risk: "low", localSafe: true },
   "park.write": { risk: "low", localSafe: true },
-  "voice.hud": { risk: "low", localSafe: true },
-  "voice.listen": { risk: "medium", localSafe: false, needsConsent: true },
   "workspace.read": { risk: "low", localSafe: true },
   "workspace.write": { risk: "medium", localSafe: false },
   exec: { risk: "high", localSafe: false },
@@ -50,11 +51,6 @@ export function authorize(input) {
   const classification = classifyAction(input?.action);
   const allowlist = Array.isArray(input?.allowlist) ? input.allowlist : [];
   const approved = input?.approved === true;
-  const consentGranted = input?.consentGranted === true;
-
-  if (classification.needsConsent && !consentGranted) {
-    return denied(classification, mode, "consent_required");
-  }
 
   if (classification.localSafe && classification.risk === "low") {
     return allowed(classification, mode, "local_safe");
@@ -109,6 +105,258 @@ export function describePermissionModes() {
     modes: PERMISSION_MODES,
     families: { ...ACTION_FAMILIES },
   };
+}
+
+/**
+ * Merge Nimbus default-deny into an OpenClaw config file on disk.
+ * Creates the file when missing. Keeps an existing `tools.exec.mode` unless
+ * `--force` or the file has no mode yet. Rewrites as JSON (comments dropped).
+ */
+export function applyToOpenClawConfig(configPath, options = {}) {
+  if (typeof configPath !== "string" || configPath.trim() === "") {
+    return { ok: false, code: "invalid_path", message: "config path required" };
+  }
+  const path = configPath.trim();
+  const requestedMode = normalizePermissionMode(options.mode ?? "deny");
+  const force = options.force === true;
+  const workspace =
+    typeof options.workspace === "string" && options.workspace.trim() !== ""
+      ? options.workspace.trim()
+      : null;
+
+  const existed = existsSync(path);
+  let config = {};
+  if (existed) {
+    const loaded = readOpenClawConfigFile(path);
+    if (!loaded.ok) {
+      return loaded;
+    }
+    config = loaded.config;
+  }
+
+  ensureRecord(config, "tools");
+  ensureRecord(config.tools, "exec");
+  if (workspace) {
+    ensureRecord(config, "agents");
+    ensureRecord(config.agents, "defaults");
+  }
+
+  const changes = [];
+  const skipped = [];
+  const currentMode = typeof config.tools.exec.mode === "string" ? config.tools.exec.mode : null;
+  if (currentMode === requestedMode) {
+    skipped.push({ path: "tools.exec.mode", reason: "already_set", value: currentMode });
+  } else if (currentMode && !force) {
+    skipped.push({
+      path: "tools.exec.mode",
+      reason: "existing_mode_kept",
+      value: currentMode,
+      requested: requestedMode,
+    });
+  } else {
+    config.tools.exec.mode = requestedMode;
+    changes.push({ path: "tools.exec.mode", from: currentMode, to: requestedMode });
+  }
+
+  if (workspace) {
+    const currentWorkspace =
+      typeof config.agents.defaults.workspace === "string" ? config.agents.defaults.workspace : null;
+    if (currentWorkspace === workspace) {
+      skipped.push({ path: "agents.defaults.workspace", reason: "already_set", value: currentWorkspace });
+    } else if (currentWorkspace && !force) {
+      skipped.push({
+        path: "agents.defaults.workspace",
+        reason: "existing_workspace_kept",
+        value: currentWorkspace,
+        requested: workspace,
+      });
+    } else {
+      config.agents.defaults.workspace = workspace;
+      changes.push({ path: "agents.defaults.workspace", from: currentWorkspace, to: workspace });
+    }
+  }
+
+  if (changes.length > 0 || !existed) {
+    writeOpenClawConfigFile(path, config);
+  }
+
+  const appliedMode =
+    typeof config.tools.exec.mode === "string" ? config.tools.exec.mode : requestedMode;
+  return {
+    ok: true,
+    path,
+    created: !existed,
+    written: changes.length > 0 || !existed,
+    mode: appliedMode,
+    changes,
+    skipped,
+  };
+}
+
+export function readOpenClawConfigFile(path) {
+  let raw;
+  try {
+    raw = readFileSync(path, "utf8");
+  } catch (error) {
+    return { ok: false, code: "unreadable", message: error instanceof Error ? error.message : String(error) };
+  }
+  const parsed = parseOpenClawConfigText(raw);
+  if (!parsed.ok) {
+    return parsed;
+  }
+  return { ok: true, config: parsed.config };
+}
+
+function writeOpenClawConfigFile(path, config) {
+  mkdirSync(dirname(path), { recursive: true });
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+  renameSync(tmp, path);
+}
+
+function ensureRecord(parent, key) {
+  const value = parent[key];
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    parent[key] = {};
+  }
+}
+
+/**
+ * Accepts JSON and the JSON5 subset OpenClaw configs commonly use:
+ * comments, unquoted keys, trailing commas. Not a full JSON5 implementation.
+ */
+export function parseOpenClawConfigText(raw) {
+  if (typeof raw !== "string") {
+    return { ok: false, code: "invalid_config", message: "config text required" };
+  }
+  const candidates = [raw, json5SubsetToJson(raw)];
+  for (const text of candidates) {
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return { ok: false, code: "invalid_config", message: "config must be a JSON object" };
+      }
+      return { ok: true, config: parsed };
+    } catch {
+      // try the next candidate
+    }
+  }
+  return { ok: false, code: "invalid_config", message: "could not parse OpenClaw config as JSON/JSON5" };
+}
+
+function json5SubsetToJson(raw) {
+  const withoutComments = stripJson5Comments(raw);
+  let out = "";
+  let i = 0;
+  let inString = false;
+  let quote = "";
+  let escaped = false;
+  while (i < withoutComments.length) {
+    const ch = withoutComments[i];
+    if (inString) {
+      out += ch;
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === quote) {
+        inString = false;
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      quote = ch;
+      out += '"';
+      i += 1;
+      continue;
+    }
+    if (ch === ",") {
+      let j = i + 1;
+      while (j < withoutComments.length && /\s/.test(withoutComments[j])) {
+        j += 1;
+      }
+      if (withoutComments[j] === "}" || withoutComments[j] === "]") {
+        i += 1;
+        continue;
+      }
+    }
+    if (lookAheadUnquotedKey(withoutComments, i)) {
+      let key = "";
+      while (i < withoutComments.length && /[\w$]/.test(withoutComments[i])) {
+        key += withoutComments[i];
+        i += 1;
+      }
+      out += `"${key}"`;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
+function stripJson5Comments(raw) {
+  let out = "";
+  let i = 0;
+  let inString = false;
+  let quote = "";
+  let escaped = false;
+  while (i < raw.length) {
+    const ch = raw[i];
+    if (inString) {
+      out += ch;
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === quote) {
+        inString = false;
+      }
+      i += 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      quote = ch;
+      out += ch;
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && raw[i + 1] === "/") {
+      i += 2;
+      while (i < raw.length && raw[i] !== "\n") {
+        i += 1;
+      }
+      continue;
+    }
+    if (ch === "/" && raw[i + 1] === "*") {
+      i += 2;
+      while (i < raw.length && !(raw[i] === "*" && raw[i + 1] === "/")) {
+        i += 1;
+      }
+      i += 2;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
+function lookAheadUnquotedKey(raw, start) {
+  if (!/[A-Za-z_$]/.test(raw[start] ?? "")) {
+    return false;
+  }
+  let i = start;
+  while (i < raw.length && /[\w$]/.test(raw[i])) {
+    i += 1;
+  }
+  while (i < raw.length && /\s/.test(raw[i])) {
+    i += 1;
+  }
+  return raw[i] === ":";
 }
 
 function allowed(classification, mode, reason) {

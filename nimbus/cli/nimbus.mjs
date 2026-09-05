@@ -3,15 +3,16 @@ import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import {
+  applyToOpenClawConfig,
   authorize,
   createNimbus,
-  createVoiceSession,
   describePermissionModes,
   installNimbusProfile,
   readNimbusProfile,
 } from "../src/index.js";
 
 const DEFAULT_STATE = join(homedir(), ".nimbus");
+const DEFAULT_OPENCLAW_CONFIG = join(homedir(), ".openclaw", "openclaw.json");
 
 function parseArgs(argv) {
   const args = argv.slice(2);
@@ -47,7 +48,7 @@ function print(value) {
 }
 
 function help() {
-  print(`Nimbus — couche locale optionnelle (fork OpenClaw 2.0)
+  print(`Nimbus — couche locale (fork OpenClaw 2.0)
 
 Usage:
   node nimbus/cli/nimbus.mjs <commande> [options]
@@ -58,34 +59,16 @@ Profil / mémoire
   memory forget --id <id> | --key <k> | --zone <z> | --weekend
   memory list [--query <q>] [--zone <z>]
 
-Colonie / débat / skills
+Colonie
   colony worker --id <id> [--role lead|worker]
   colony task --title <titre>
   colony assign --task <id> --worker <id>
-  colony step --task <id> --action <famille> --summary <texte> [--target <nœud>]
+  colony step --task <id> --action <famille> --summary <texte>
   colony decide --step <id> --verdict approve|reject
   colony run --step <id>
   colony ledger
-  debate open --question <texte> [--task <id>]
-  debate argue --id <deb> --side security|speed --text <texte> [--worker <id>]
-  debate queen --id <deb> --pick security|speed [--note <texte>]
-  debate decide --id <deb> --pick security|speed
-  debate ledger
-  skills record --pattern <p> --summary <texte> [--action <famille>]
-  skills list
-  skills sandbox --id <skill>
-  skills approve|reject|run --id <skill>
 
-Jumeau / anticipation / présence / hors-ligne / confiance
-  twin node --id <id> [--kind service|repo|node] [--label <l>] [--deps a,b] [--critical]
-  twin link --from <a> --to <b>
-  twin graph
-  twin impact --target <id> --action <famille>
-  anticipate add --context <c> --text <texte> [--at ISO]
-  anticipate due
-  anticipate rate --id <hint> --verdict useful|not_useful
-  room enter --id bureau|salon
-  room current
+Hors-ligne / confiance / park / permissions
   offline on|off
   offline enqueue --action <a> --summary <texte> [--risk low|high]
   offline reconnect
@@ -97,11 +80,12 @@ Jumeau / anticipation / présence / hors-ligne / confiance
   park action --session <id> --type <type> [--tokens-in N] [--tokens-out N]
   park timeline [--session <id>]
   park cost [--session <id>]
-  voice demo          (machine d'états, aucun micro)
   permissions modes
   permissions check --action <famille> [--mode deny] [--approved]
+  permissions apply [--config <openclaw.json>] [--mode deny] [--workspace <dir>] [--force]
 
-Le micro n'est jamais activé par cette CLI. Voir nimbus/docs/voix-consentement.md.
+État : --state <dir> ou NIMBUS_STATE_DIR (défaut ~/.nimbus).
+Voix, calendrier, jumeau Docker : non implémentés. Pas de HUD de démo.
 `);
 }
 
@@ -173,7 +157,6 @@ function main() {
           taskId: flags.task,
           action: flags.action,
           summary: flags.summary,
-          targetId: flags.target,
         }),
       );
       return;
@@ -187,103 +170,6 @@ function main() {
       return;
     }
     print(nimbus.colony.ledger());
-    return;
-  }
-
-  if (command === "debate") {
-    if (sub === "open") {
-      print(nimbus.debate.open({ question: flags.question, taskId: flags.task }));
-      return;
-    }
-    if (sub === "argue") {
-      print(nimbus.debate.argue(flags.id, flags.side, flags.text, flags.worker ?? flags.side));
-      return;
-    }
-    if (sub === "queen") {
-      print(nimbus.debate.queenRecommend(flags.id, flags.pick, flags.note ?? ""));
-      return;
-    }
-    if (sub === "decide") {
-      print(nimbus.debate.decide(flags.id, flags.pick, "human"));
-      return;
-    }
-    print(nimbus.debate.ledger());
-    return;
-  }
-
-  if (command === "skills") {
-    if (sub === "record") {
-      print(nimbus.skills.recordSuccess({ pattern: flags.pattern, summary: flags.summary, action: flags.action }));
-      return;
-    }
-    if (sub === "sandbox") {
-      print(nimbus.skills.sandboxRun(flags.id));
-      return;
-    }
-    if (sub === "approve") {
-      print(nimbus.skills.approve(flags.id));
-      return;
-    }
-    if (sub === "reject") {
-      print(nimbus.skills.reject(flags.id));
-      return;
-    }
-    if (sub === "run") {
-      print(nimbus.skills.run(flags.id));
-      return;
-    }
-    print(nimbus.skills.list());
-    return;
-  }
-
-  if (command === "twin") {
-    if (sub === "node") {
-      print(
-        nimbus.twin.upsertNode({
-          id: flags.id,
-          kind: flags.kind,
-          label: flags.label,
-          deps: flags.deps ? String(flags.deps).split(",") : [],
-          critical: Boolean(flags.critical),
-        }),
-      );
-      return;
-    }
-    if (sub === "link") {
-      print(nimbus.twin.link(flags.from, flags.to));
-      return;
-    }
-    if (sub === "impact") {
-      print(nimbus.twin.simulateImpact({ targetId: flags.target, action: flags.action ?? "exec" }));
-      return;
-    }
-    print(nimbus.twin.graph());
-    return;
-  }
-
-  if (command === "anticipate") {
-    if (sub === "add") {
-      print(nimbus.anticipation.scheduleHint({ context: flags.context, text: flags.text, at: flags.at }));
-      return;
-    }
-    if (sub === "rate") {
-      print(nimbus.anticipation.rate(flags.id, flags.verdict));
-      return;
-    }
-    print(nimbus.anticipation.dueHints());
-    return;
-  }
-
-  if (command === "room") {
-    if (sub === "enter") {
-      const entered = nimbus.presence.enter(flags.id);
-      if (entered.ok) {
-        nimbus.voice.setRoom(entered.room);
-      }
-      print(entered);
-      return;
-    }
-    print(nimbus.presence.current());
     return;
   }
 
@@ -360,20 +246,6 @@ function main() {
     return;
   }
 
-  if (command === "voice") {
-    const voice = createVoiceSession();
-    if (sub === "demo") {
-      voice.grantConsent();
-      voice.startListening();
-      voice.hearFinal("Bonjour Nimbus");
-      voice.agentReady("Oui ?");
-      print(voice.snapshot());
-      return;
-    }
-    print(voice.snapshot());
-    return;
-  }
-
   if (command === "permissions") {
     if (sub === "check") {
       print(
@@ -381,8 +253,18 @@ function main() {
           action: flags.action,
           mode: flags.mode ?? "deny",
           approved: Boolean(flags.approved),
-          consentGranted: Boolean(flags.consent),
           allowlist: flags.allowlist ? String(flags.allowlist).split(",") : [],
+        }),
+      );
+      return;
+    }
+    if (sub === "apply") {
+      const configPath = resolve(flags.config ?? process.env.OPENCLAW_CONFIG_PATH ?? DEFAULT_OPENCLAW_CONFIG);
+      print(
+        applyToOpenClawConfig(configPath, {
+          mode: flags.mode ?? "deny",
+          workspace: flags.workspace,
+          force: Boolean(flags.force),
         }),
       );
       return;

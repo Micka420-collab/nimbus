@@ -24,7 +24,7 @@ Le profil Nimbus part en **refus par défaut** (`tools.exec.mode: deny` dans l'o
 
 ## Voix
 
-Si une conversation vocale est ouverte : afficher Écoute / Réflexion / Parole / Micro coupé. Jamais de micro furtif. Consentement explicite à chaque session. Voir `nimbus/docs/voix-consentement.md`.
+Cette couche n'implémente pas de STT/TTS. Pas de micro, pas de HUD. Si un plugin vocal OpenClaw est configuré ailleurs, il reste hors de `nimbus/`.
 
 ## Colonie
 

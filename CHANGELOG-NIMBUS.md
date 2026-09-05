@@ -2,6 +2,23 @@
 
 Journal de la couche personnelle. Le `CHANGELOG.md` OpenClaw reste généré pour les releases upstream — ne pas l'éditer ici.
 
+## 0.3.0 — 2026-09-05
+
+### Pourquoi
+
+Les chemins démo (HUD voix, anticipation, jumeau, skills, débat, pièces) étaient présentés comme des fonctions. Ils n'avaient pas d'intégration réelle.
+
+### Changé
+
+- Suppression des modules et commandes théâtre. README limité à ce qui écrit un état disque testé.
+- `permissions apply` fusionne `tools.exec.mode` (et optionnellement le workspace) dans un `openclaw.json` réel. Mode existant conservé sans `--force`.
+- La colonie n'attache plus de simulation d'impact. Trust continue de gate les étapes medium / high.
+- CI de ce fork : seul `.github/workflows/nimbus.yml` reste actif. Les workflows OpenClaw org sont archivés dans `.github/upstream-workflows/`.
+
+### Inchangé
+
+- Mémoire, colonie, trust, file hors-ligne, park, profil. Install OpenClaw inchangé.
+
 ## 0.2.0 — 2026-09-04
 
 ### Pourquoi
