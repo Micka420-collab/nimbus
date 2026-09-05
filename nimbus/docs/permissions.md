@@ -29,7 +29,7 @@ node nimbus/cli/nimbus.mjs permissions apply --config ~/.openclaw/openclaw.json 
 
 - Crée le fichier s'il n'existe pas.
 - Si `tools.exec.mode` est déjà défini, il est **conservé**. `--force` l'écrase.
-- La fusion réécrit le fichier en JSON (les commentaires JSON5 sont perdus).
+- La fusion réécrit le fichier en JSON (les commentaires JSON5 sont perdus). Avant d'écraser un fichier existant, une copie horodatée `openclaw.json.bak-YYYYMMDDTHHMMSS` est écrite à côté. Un deuxième apply n'écrase pas la première sauvegarde.
 - Après ça : `openclaw exec-policy show` puis `openclaw gateway restart` si le gateway tourne.
 
 Le fichier `nimbus/config/openclaw.nimbus.overlay.json5` est la forme documentaire du même overlay, pas un second chemin d'application.

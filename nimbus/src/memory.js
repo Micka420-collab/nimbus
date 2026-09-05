@@ -41,7 +41,7 @@ export function createMemory(rootDir, options = {}) {
       if (!key || !value) {
         return { ok: false, code: "invalid_entry", message: "key and value are required." };
       }
-      const secret = assertNoSecret(`${key}\n${value}`, "memory");
+      const secret = assertNoSecret(`${key}\n${value}`, "memory", { force: input?.force === true });
       if (!secret.ok) {
         return secret;
       }
@@ -62,7 +62,7 @@ export function createMemory(rootDir, options = {}) {
             existing.weekendForget = ttl.weekendForget;
             existing.expiresAt = ttl.expiresAt;
           }
-          return { ok: true, entry: { ...existing }, updated: true };
+          return { ok: true, entry: { ...existing }, updated: true, forced: secret.forced === true, warning: secret.warning };
         }
         const entry = {
           id: `mem_${randomUUID()}`,
@@ -79,7 +79,7 @@ export function createMemory(rootDir, options = {}) {
           forgotten: false,
         };
         doc.entries.push(entry);
-        return { ok: true, entry: { ...entry }, updated: false };
+        return { ok: true, entry: { ...entry }, updated: false, forced: secret.forced === true, warning: secret.warning };
       });
     },
 
@@ -115,16 +115,15 @@ export function createMemory(rootDir, options = {}) {
     },
 
     recall(input = {}) {
-      persist((doc) => {
-        stampExpire(doc);
-        return { ok: true };
-      });
+      const doc = store.read();
+      const expired = stampExpire(doc);
+      if (expired > 0) {
+        store.write(doc);
+      }
       const query = typeof input.query === "string" ? input.query.trim().toLowerCase() : "";
       const zone = input.zone ? normalizeZone(input.zone) : null;
       const limit = clampLimit(input.limit);
-      const entries = store
-        .read()
-        .entries.filter((entry) => !entry.forgotten)
+      const entries = doc.entries.filter((entry) => !entry.forgotten)
         .filter((entry) => !isExpired(entry, now()))
         .filter((entry) => (zone ? entry.zone === zone : true))
         .filter((entry) => {

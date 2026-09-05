@@ -14,11 +14,11 @@ State directory: `--state <dir>` or `NIMBUS_STATE_DIR` (default `~/.nimbus`).
 | Command family | Behavior |
 | --- | --- |
 | `profile install --workspace <dir>` | Copies the French persona files. Skips existing files unless `--force`. |
-| `memory learn\|list\|forget` | Local JSON memory with zones and TTL. Secret-shaped values are refused. |
+| `memory learn\|list\|forget` | Local JSON memory with zones and TTL. Secret-shaped values are refused unless `--force`. |
 | `colony …` | Ledger + human approval for high-risk steps. Trust can ready medium steps only. |
 | `trust show` | Per-action approval scores from colony decisions. |
 | `offline on\|off\|enqueue\|reconnect\|decide` | Local queue. Online/offline is a flag, not a network probe. |
-| `permissions apply --config <file>` | Merges `tools.exec.mode` (default `deny`) into an OpenClaw config. Existing mode is kept unless `--force`. |
+| `permissions apply --config <file>` | Merges `tools.exec.mode` (default `deny`) into an OpenClaw config. Existing mode is kept unless `--force`. Rewriting an existing file writes `<file>.bak-YYYYMMDDTHHMMSS` first. |
 | `park …` | Session park/resume, timeline, rough cost. |
 
 Details: [docs/memoire.md](docs/memoire.md), [docs/colonie.md](docs/colonie.md), [docs/permissions.md](docs/permissions.md).

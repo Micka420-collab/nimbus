@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { createMemory } from "../src/memory.js";
 import { fixedClock, tempState } from "./helpers.js";
@@ -39,6 +41,26 @@ test("refuses API-key shaped secrets", () => {
   assert.equal(refused.ok, false);
   assert.equal(refused.code, "secret_refused");
   assert.equal(memory.list().entries.length, 0);
+});
+
+test("recall and list do not rewrite memory.json unless something expired", () => {
+  const dir = tempState("nimbus-mtime-");
+  const time = { now: "2026-09-04T12:00:00.000Z" };
+  const memory = createMemory(dir, { now: () => time.now });
+  memory.learn({ key: "tmp", value: "post-it", ttl: 1 });
+  const path = join(dir, "memory.json");
+  const beforeRaw = readFileSync(path, "utf8");
+  const before = statSync(path).mtimeMs;
+  memory.list();
+  memory.recall();
+  memory.list();
+  assert.equal(statSync(path).mtimeMs, before);
+  assert.equal(readFileSync(path, "utf8"), beforeRaw);
+  time.now = "2026-09-04T13:30:00.000Z";
+  assert.equal(memory.recall().entries.length, 0);
+  const afterRaw = readFileSync(path, "utf8");
+  assert.notEqual(afterRaw, beforeRaw);
+  assert.match(afterRaw, /"expired": true/);
 });
 
 test("records an operator correction", () => {

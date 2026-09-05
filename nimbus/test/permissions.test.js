@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
@@ -78,7 +78,21 @@ test("apply creates a deny OpenClaw config and keeps an existing mode", () => {
   assert.equal(kept.skipped[0].reason, "existing_mode_kept");
   assert.equal(parseOpenClawConfigText(readFileSync(createdPath, "utf8")).config.tools.exec.mode, "ask");
 
-  const forced = applyToOpenClawConfig(createdPath, { mode: "deny", force: true });
+  const firstNow = () => new Date("2026-09-04T12:00:00.000Z");
+  const forced = applyToOpenClawConfig(createdPath, { mode: "deny", force: true, now: firstNow });
   assert.equal(forced.mode, "deny");
   assert.equal(JSON.parse(readFileSync(createdPath, "utf8")).tools.exec.mode, "deny");
+  const firstBak = `${createdPath}.bak-20260904T120000`;
+  assert.equal(existsSync(firstBak), true);
+  assert.match(readFileSync(firstBak, "utf8"), /ask/);
+  assert.match(readFileSync(firstBak, "utf8"), /existing operator choice/);
+
+  const secondNow = () => new Date("2026-09-04T12:00:01.000Z");
+  const again = applyToOpenClawConfig(createdPath, { mode: "auto", force: true, now: secondNow });
+  assert.equal(again.mode, "auto");
+  const secondBak = `${createdPath}.bak-20260904T120001`;
+  assert.equal(existsSync(secondBak), true);
+  assert.match(readFileSync(firstBak, "utf8"), /existing operator choice/);
+  assert.match(readFileSync(firstBak, "utf8"), /ask/);
+  assert.equal(JSON.parse(readFileSync(secondBak, "utf8")).tools.exec.mode, "deny");
 });

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 /**
@@ -23,6 +23,7 @@ export const ACTION_FAMILIES = Object.freeze({
   "park.write": { risk: "low", localSafe: true },
   "workspace.read": { risk: "low", localSafe: true },
   "workspace.write": { risk: "medium", localSafe: false },
+  computer: { risk: "medium", localSafe: false },
   exec: { risk: "high", localSafe: false },
   network: { risk: "high", localSafe: false },
   send: { risk: "high", localSafe: false },
@@ -51,6 +52,7 @@ export function authorize(input) {
   const classification = classifyAction(input?.action);
   const allowlist = Array.isArray(input?.allowlist) ? input.allowlist : [];
   const approved = input?.approved === true;
+  const trustReady = input?.trustReady === true && classification.risk !== "high";
 
   if (classification.localSafe && classification.risk === "low") {
     return allowed(classification, mode, "local_safe");
@@ -61,6 +63,9 @@ export function authorize(input) {
   }
 
   if (mode === "deny") {
+    if (trustReady) {
+      return allowed(classification, mode, "trust_ready");
+    }
     if (approved && classification.risk !== "high") {
       return allowed(classification, mode, "human_approved");
     }
@@ -79,6 +84,10 @@ export function authorize(input) {
 
   if (listed) {
     return allowed(classification, mode, "allowlist_hit");
+  }
+
+  if (trustReady) {
+    return allowed(classification, mode, "trust_ready");
   }
 
   if (approved) {
@@ -111,6 +120,7 @@ export function describePermissionModes() {
  * Merge Nimbus default-deny into an OpenClaw config file on disk.
  * Creates the file when missing. Keeps an existing `tools.exec.mode` unless
  * `--force` or the file has no mode yet. Rewrites as JSON (comments dropped).
+ * Before rewriting an existing file, copies it to `<path>.bak-YYYYMMDDTHHMMSS`.
  */
 export function applyToOpenClawConfig(configPath, options = {}) {
   if (typeof configPath !== "string" || configPath.trim() === "") {
@@ -119,6 +129,7 @@ export function applyToOpenClawConfig(configPath, options = {}) {
   const path = configPath.trim();
   const requestedMode = normalizePermissionMode(options.mode ?? "deny");
   const force = options.force === true;
+  const now = options.now ?? (() => new Date());
   const workspace =
     typeof options.workspace === "string" && options.workspace.trim() !== ""
       ? options.workspace.trim()
@@ -176,7 +187,12 @@ export function applyToOpenClawConfig(configPath, options = {}) {
     }
   }
 
+  let bak = null;
   if (changes.length > 0 || !existed) {
+    if (existed) {
+      bak = timestampedBakPath(path, now());
+      copyFileSync(path, bak);
+    }
     writeOpenClawConfigFile(path, config);
   }
 
@@ -185,12 +201,27 @@ export function applyToOpenClawConfig(configPath, options = {}) {
   return {
     ok: true,
     path,
+    bak,
     created: !existed,
     written: changes.length > 0 || !existed,
     mode: appliedMode,
     changes,
     skipped,
   };
+}
+
+export function timestampedBakPath(path, at = new Date()) {
+  const date = at instanceof Date ? at : new Date(at);
+  const stamp = date.toISOString().replaceAll("-", "").replaceAll(":", "").replace(/\.\d{3}Z$/, "");
+  let bak = `${path}.bak-${stamp}`;
+  if (!existsSync(bak)) {
+    return bak;
+  }
+  let n = 2;
+  while (existsSync(`${path}.bak-${stamp}-${n}`)) {
+    n += 1;
+  }
+  return `${path}.bak-${stamp}-${n}`;
 }
 
 export function readOpenClawConfigFile(path) {

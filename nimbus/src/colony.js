@@ -149,17 +149,19 @@ export function createColony(rootDir, options = {}) {
             step: { ...step },
           };
         }
+        const humanDecided = step.decidedBy === "human";
         const decision = authorize({
           action: step.action,
           mode: permissionMode,
-          approved: true,
+          approved: humanDecided,
+          trustReady: step.trusted === true && !humanDecided,
         });
         if (!decision.allowed) {
           return { ok: false, code: "denied", decision, step: { ...step } };
         }
         step.status = "done";
         step.decidedAt = step.decidedAt ?? now();
-        return { ok: true, step: { ...step } };
+        return { ok: true, decision, step: { ...step } };
       });
     },
 
