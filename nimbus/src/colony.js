@@ -13,7 +13,6 @@ export function createColony(rootDir, options = {}) {
   const now = options.now ?? (() => new Date().toISOString());
   const permissionMode = options.permissionMode ?? "deny";
   const trust = options.trust ?? null;
-  const twin = options.twin ?? null;
 
   const persist = (mutate) => {
     const doc = store.read();
@@ -91,10 +90,6 @@ export function createColony(rootDir, options = {}) {
           return { ok: false, code: "task_unavailable", message: "task missing or cancelled" };
         }
         const classification = classifyAction(action);
-        const impact =
-          twin && input?.targetId
-            ? twin.simulateImpact({ action, targetId: input.targetId })
-            : null;
         const decision = authorize({
           action,
           mode: permissionMode,
@@ -102,23 +97,21 @@ export function createColony(rootDir, options = {}) {
         });
         const trusted = Boolean(trust?.mayAutoRun?.(action));
         // High-risk + default-deny stays human-gated even with a hot trust score.
-        const autoReady = decision.allowed || (trusted && classification.risk !== "high" && !impact?.blocked);
+        const autoReady = decision.allowed || (trusted && classification.risk !== "high");
         const step = {
           id: `step_${randomUUID()}`,
           taskId,
           action,
           summary,
-          risk: impact?.blocked ? "high" : classification.risk,
-          targetId: input?.targetId ?? null,
-          impact,
+          risk: classification.risk,
           trusted,
-          status: autoReady && !impact?.blocked ? "ready" : "needs_approval",
+          status: autoReady ? "ready" : "needs_approval",
           createdAt: now(),
           decidedAt: null,
           decidedBy: null,
         };
         doc.steps.push(step);
-        return { ok: true, step, decision, impact };
+        return { ok: true, step, decision };
       });
     },
 
