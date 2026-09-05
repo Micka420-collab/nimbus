@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'"
+    />
+    <title>Nimbus Agent</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Nimbus Agent</h1>
+        <p class="tagline">Compagnon Windows. Pas d’audio Astra. Le micro n’est jamais furtif.</p>
+      </header>
+
+      <section id="status-card" class="card">
+        <p id="connection-label">Hors ligne</p>
+        <p id="voice-phase" class="hint">Voix : arrêtée</p>
+        <p id="approval-label" class="hint"></p>
+        <p id="error-label" class="error" hidden></p>
+      </section>
+
+      <section class="card">
+        <h2>Jumelage</h2>
+        <label for="pair-input">Code, jeton ou URL Gateway</label>
+        <textarea id="pair-input" rows="3" placeholder="oc-pair://… ou jeton + URL"></textarea>
+        <button type="button" id="pair-btn">Jumeler</button>
+      </section>
+
+      <section class="card">
+        <h2>Voix</h2>
+        <p class="hint">Appui-parler local. Conversation continue seulement après un démarrage explicite. Pilule micro toujours visible.</p>
+        <div class="row">
+          <button type="button" id="consent-btn">Autoriser le micro</button>
+          <button type="button" id="mute-btn">Couper le micro</button>
+          <button type="button" id="barge-btn">Couper la lecture</button>
+        </div>
+        <div class="row">
+          <button type="button" id="ptt-btn" class="primary" disabled>Maintenir pour parler</button>
+          <button type="button" id="conversation-btn" disabled>Démarrer la conversation</button>
+        </div>
+        <div class="meter" aria-hidden="true">
+          <div id="level-bar"></div>
+        </div>
+        <p id="mic-pill" class="pill idle">Micro arrêté</p>
+        <label for="input-device">Micro</label>
+        <select id="input-device"></select>
+        <label for="output-device">Haut-parleurs</label>
+        <select id="output-device"></select>
+        <label for="hotkey">Raccourci appui-parler</label>
+        <input id="hotkey" type="text" value="Alt+Space" />
+        <button type="button" id="save-voice-btn">Enregistrer les appareils</button>
+      </section>
+
+      <section class="card">
+        <h2>Contrôle du bureau</h2>
+        <label for="brief-input">Consigne (français)</label>
+        <textarea id="brief-input" rows="2" placeholder="Ouvre le Bloc-notes et écris hello"></textarea>
+        <button type="button" id="brief-btn">Exécuter</button>
+        <p class="hint">Échap ou Arrêter dans le bandeau / le plateau pour abort.</p>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

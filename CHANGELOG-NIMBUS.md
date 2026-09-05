@@ -2,6 +2,25 @@
 
 Journal de la couche personnelle. Le `CHANGELOG.md` OpenClaw reste généré pour les releases upstream — ne pas l'éditer ici.
 
+## 0.5.0 — 2026-09-05
+
+### Pourquoi
+
+Il manquait un compagnon Windows téléchargeable depuis le Dashboard, avec voix PTT visible et contrôle bureau façon Astra (observe → valide → exécute → réobserve), sans HUD furtif.
+
+### Ajouté
+
+- `nimbus/windows-agent/` : nœud Electron, handshake Gateway réel (`connect` / `hello-ok` / `node.invoke`), installateur NSIS `NimbusAgent-Setup-x64.exe`, tests protocole Linux.
+- Apps / Control UI : **Download Windows Agent** vers le latest GitHub asset (ou `/nimbus-agent/` en local).
+- Voix : machine idle/muted/listening/thinking/speaking, PTT + conversation explicite, barge-in, appareils / niveau / mute / raccourci. STT/TTS OpenAI-compatible. Pas d'audio Astra. Échec franc sans clé.
+- Contrôle bureau : hash d'écran + un retry stale-UI, planner FR, plan JSON Gateway, Playwright `goto` si installé, trust overlay, HUD / plateau Approuver-Refuser, Échap.
+- Reconnexion Gateway ; jeton refusé visible en français (pas de boucle).
+- CI `nimbus-windows-agent.yml` sur `windows-latest` (NSIS unsigned — SmartScreen attendu).
+
+### Inchangé
+
+- Overlay `nimbus/src` sans théâtre vocal. Mémoire, colonie, trust, park, permissions.
+
 ## 0.4.0 — 2026-09-05
 
 ### Pourquoi

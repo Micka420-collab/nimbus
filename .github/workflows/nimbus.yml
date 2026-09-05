@@ -14,7 +14,7 @@ jobs:
         with:
           node-version: "22"
       - name: Run Nimbus tests
-        run: node --test nimbus/test/*.test.js
+        run: node --test nimbus/test/*.test.js nimbus/windows-agent/test/*.test.js
       - name: CLI disk smoke
         run: |
           STATE="${RUNNER_TEMP}/nimbus-ci"

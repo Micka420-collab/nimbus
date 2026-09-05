@@ -20,12 +20,22 @@ State directory: `--state <dir>` or `NIMBUS_STATE_DIR` (default `~/.nimbus`).
 | `offline on\|off\|enqueue\|reconnect\|decide` | Local queue. Online/offline is a flag, not a network probe. |
 | `permissions apply --config <file>` | Merges `tools.exec.mode` (default `deny`) into an OpenClaw config. Existing mode is kept unless `--force`. Rewriting an existing file writes `<file>.bak-YYYYMMDDTHHMMSS` first. |
 | `park …` | Session park/resume, timeline, rough cost. |
+| Windows Agent | Pair as a Gateway node, PTT voice, Astra-class computer use with a HUD. | [windows-agent/README.md](windows-agent/README.md) |
 
 Details: [docs/memoire.md](docs/memoire.md), [docs/colonie.md](docs/colonie.md), [docs/permissions.md](docs/permissions.md).
 
+## Windows companion
+
+Download `NimbusAgent-Setup-x64.exe` from [GitHub latest](https://github.com/Micka420-collab/nimbus/releases/latest/download/NimbusAgent-Setup-x64.exe), or place a CI artifact on the Gateway host at `/nimbus-agent/NimbusAgent-Setup-x64.exe`. Build with the `nimbus-windows-agent` workflow. Voice is a Nimbus PTT path (not Astra audio). Desktop control is foreground-only and always shows **Nimbus contrôle le bureau**. See [windows-agent/README.md](windows-agent/README.md).
+
+```bash
+node --test nimbus/windows-agent/test/*.test.js
+node nimbus/windows-agent/cli.mjs phrase --text "ouvre le Bloc-notes et écris hello"
+```
+
 ## Not ready
 
-Voice STT/TTS, calendar anticipation, Docker/homelab twin, autogen skills, and debate rooms are **not implemented**. There is no demo HUD.
+Calendar anticipation, Docker/homelab twin, autogen skills, and debate rooms are **not implemented** in `nimbus/src`. There is no demo voice HUD in the overlay CLI.
 
 ## OpenClaw host
 

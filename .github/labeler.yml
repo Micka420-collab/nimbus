@@ -272,6 +272,10 @@
       - any-glob-to-any-file:
           - "apps/linux/**"
           - "docs/platforms/linux.md"
+"app: nimbus-windows":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "nimbus/windows-agent/**"
 "app: web-ui":
   - changed-files:
       - any-glob-to-any-file:
