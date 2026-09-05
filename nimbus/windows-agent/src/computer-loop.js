@@ -101,12 +101,6 @@ export function createComputerLoop(options = {}) {
         return fail("aborted", "Human aborted desktop control.");
       }
       const { alignment, gate } = authorize(action, extras);
-      if (!alignment.aligned && extras.approved !== true) {
-        status = "waiting_approval";
-        pendingAction = action;
-        log.push({ phase: "validate", ok: false, reason: alignment.reason });
-        return { ok: false, phase: "validate", reason: alignment.reason, pendingAction, ...snapshot() };
-      }
       if (!gate.allowed) {
         if (gate.reason === "needs_human") {
           status = "waiting_approval";
@@ -122,6 +116,13 @@ export function createComputerLoop(options = {}) {
           pendingAction,
           ...snapshot(),
         };
+      }
+      // High-impact opcodes already hard-gated above. Uncompiled briefs fail closed.
+      if (!alignment.aligned && extras.approved !== true) {
+        status = "waiting_approval";
+        pendingAction = action;
+        log.push({ phase: "validate", ok: false, reason: alignment.reason });
+        return { ok: false, phase: "validate", reason: alignment.reason, pendingAction, ...snapshot() };
       }
       log.push({ phase: "validate", ok: true, reason: gate.reason });
       return { ok: true, phase: "validate", trust: gate.trust, ...snapshot() };

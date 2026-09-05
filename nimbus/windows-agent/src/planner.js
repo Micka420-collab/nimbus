@@ -6,19 +6,8 @@
  */
 
 import { parseHarnessProgram } from "./harness.js";
+import { canonicalLaunchApp } from "./launch-targets.js";
 import { extractAssistantText } from "./speech-transport.js";
-
-const APP_ALIASES = Object.freeze({
-  notepad: "notepad",
-  "bloc-notes": "notepad",
-  blocnotes: "notepad",
-  "bloc notes": "notepad",
-  calc: "calc",
-  calculatrice: "calc",
-  chrome: "chrome",
-  edge: "msedge",
-  firefox: "firefox",
-});
 
 /**
  * @param {string} text
@@ -113,11 +102,7 @@ export async function planWithGatewayModel(params) {
 }
 
 function aliasApp(name) {
-  const key = String(name ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
-  return APP_ALIASES[key] ?? key;
+  return canonicalLaunchApp(name);
 }
 
 function parseJsonObject(text) {

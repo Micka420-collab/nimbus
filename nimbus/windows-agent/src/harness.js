@@ -4,6 +4,7 @@
  */
 
 import { parseComputerAction } from "./computer-actions.js";
+import { canonicalLaunchApp } from "./launch-targets.js";
 
 export const HARNESS_OPS = Object.freeze([
   "screenshot",
@@ -18,18 +19,6 @@ export const HARNESS_OPS = Object.freeze([
   "goto",
   "navigate",
 ]);
-
-const APP_ALIASES = Object.freeze({
-  notepad: "notepad",
-  "bloc-notes": "notepad",
-  blocnotes: "notepad",
-  "bloc notes": "notepad",
-  calc: "calc",
-  calculatrice: "calc",
-  chrome: "chrome",
-  edge: "msedge",
-  firefox: "firefox",
-});
 
 /**
  * @param {unknown} raw
@@ -81,11 +70,7 @@ function mapStep(step) {
 }
 
 function normalizeApp(name) {
-  const key = String(name ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
-  return APP_ALIASES[key] ?? key;
+  return canonicalLaunchApp(name);
 }
 
 function safeJson(text) {

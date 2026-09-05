@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
-
-const NOTEPAD_ALIASES = new Set(["notepad", "bloc-notes", "blocnotes"]);
+import { resolveLaunchExe } from "./launch-targets.js";
 
 export function describeWindowsInput(platform = process.platform) {
   return {
@@ -21,8 +20,7 @@ export function planWindowsCommand(action) {
     return { ok: true, kind: "screenshot" };
   }
   if (name === "launch_app") {
-    const app = String(action.app ?? "").toLowerCase();
-    const exe = NOTEPAD_ALIASES.has(app) ? "notepad.exe" : sanitizeExe(action.app);
+    const exe = resolveLaunchExe(action.app);
     if (!exe) {
       return { ok: false, code: "invalid_app", message: "launch_app exe refused." };
     }
@@ -75,14 +73,6 @@ export function createWindowsAdapter(options = {}) {
       return ran.ok ? { ok: true, executed: action.action, plan } : ran;
     },
   };
-}
-
-function sanitizeExe(name) {
-  const value = String(name ?? "").trim();
-  if (!/^[A-Za-z0-9._-]+$/.test(value)) {
-    return "";
-  }
-  return value.endsWith(".exe") ? value : `${value}.exe`;
 }
 
 function defaultRunner(plan) {

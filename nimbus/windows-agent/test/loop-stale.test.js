@@ -15,6 +15,7 @@ test("stale screenshot hash retries once then fails closed", async () => {
     },
   });
   const same = Buffer.from("same-pixels");
+  loop.setBrief("ouvre le Bloc-notes et écris hello");
   await loop.observe({ frameId: "f1", bytes: same, hash: hashObservationBytes(same, "utf8") });
   const result = await loop.execute(
     { action: "type", text: "hello" },

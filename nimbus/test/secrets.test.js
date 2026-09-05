@@ -40,4 +40,9 @@ test("credential assignment is refused regardless of value; prose without assign
   const stored = memory.learn({ key: "force-mdp", value: "password: Bitwarden", force: true });
   assert.equal(stored.ok, true);
   assert.equal(stored.forced, true);
+
+  const proseVault = "password: mon-coffre-perso";
+  assert.equal(inspectSecretLeak(proseVault).leaked, false);
+  const vault = memory.learn({ key: "coffre", value: proseVault });
+  assert.equal(vault.ok, true);
 });

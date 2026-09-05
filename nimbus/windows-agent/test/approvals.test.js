@@ -38,10 +38,14 @@ test("structured high-impact opcodes always need confirm", () => {
 test("intent alignment compares compiled steps, not FR/EN keywords", () => {
   const mailFr = intentAligned("envoie ce mail à Paul", { action: "type", text: "bonjour" });
   const mailEn = intentAligned("send this mail to Paul", { action: "type", text: "hello" });
-  assert.equal(mailFr.aligned, true);
+  assert.equal(mailFr.aligned, false);
   assert.equal(mailFr.reason, "no_structured_brief");
-  assert.equal(mailEn.aligned, true);
+  assert.equal(mailEn.aligned, false);
   assert.equal(mailEn.reason, "no_structured_brief");
+
+  const sendFr = intentAligned("envoie ce mail à Paul", { action: "send" });
+  assert.equal(sendFr.aligned, false);
+  assert.equal(sendFr.reason, "no_structured_brief");
 
   const notes = intentAligned("ouvre le Bloc-notes et écris hello", { action: "type", text: "hello" });
   assert.equal(notes.aligned, true);
@@ -50,4 +54,25 @@ test("intent alignment compares compiled steps, not FR/EN keywords", () => {
   const mismatch = intentAligned("ouvre le Bloc-notes et écris hello", { action: "exec" });
   assert.equal(mismatch.aligned, false);
   assert.equal(mismatch.reason, "structured_mismatch");
+});
+
+test("unlisted launch_app targets need human confirm; allowlisted stay medium", () => {
+  for (const app of ["msiexec", "winget", "powershell", "pwsh", "cmd"]) {
+    const gate = authorizeComputerAction({
+      action: { action: "launch_app", app },
+      hudVisible: true,
+    });
+    assert.equal(gate.allowed, false, app);
+    assert.equal(gate.reason, "needs_human", app);
+    assert.equal(gate.classification.confirm, true, app);
+  }
+  const notes = authorizeComputerAction({
+    action: { action: "launch_app", app: "notepad" },
+    hudVisible: true,
+  });
+  assert.equal(notes.allowed, true);
+  assert.equal(notes.classification.confirm, false);
+  assert.equal(notes.classification.family, "computer");
+  const calc = classifyDesktopIntent({ action: "launch_app", app: "calculatrice" });
+  assert.equal(calc.confirm, false);
 });

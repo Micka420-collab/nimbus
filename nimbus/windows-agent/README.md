@@ -43,7 +43,7 @@ Core stays plugin-agnostic. This overlay does not import OpenClaw `src/**`.
 - **Untrusted:** model text, remote `computer.act` payloads, STT transcripts, harness JSON.
 - **Visible consent:** mic is off until a visible consent click. No wake word. Pill always shows phase.
 - **Visible control:** desktop actions require the HUD **Nimbus contrôle le bureau**. Escape / tray **Arrêter** abort.
-- **Default-deny:** `screen.record`, camera, exploit-marker strings. High-impact send/pay/delete/install need a human confirm.
+- **Default-deny:** `screen.record`, camera, exploit-marker strings. High-impact send/pay/delete/install/exec need a human confirm. `launch_app` without confirm is only notepad, calc, chrome, msedge, firefox (and their FR aliases). `msiexec`, `winget`, `powershell`, `cmd`, and any other exe need confirm.
 - **No secrets in git or overlay state.** `OPENAI_API_KEY` stays in the process environment.
 - **Fail closed:** missing speech keys, missing Playwright, stale UI after one retry, rejected pairing tokens (no reconnect loop).
 - **Not in scope:** keyloggers, stealth capture, vulnerability discovery, unsigned-trust bypass.

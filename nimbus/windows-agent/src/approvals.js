@@ -1,3 +1,4 @@
+import { launchAppRequiresConfirm, normalizeLaunchTarget } from "./launch-targets.js";
 import { compileDesktopPhrase } from "./planner.js";
 
 /** High-impact families that always need a visible human confirm outside `full`. */
@@ -53,6 +54,14 @@ export function classifyDesktopIntent(action) {
   if (impact) {
     return { family: impact, risk: "high", confirm: true, opcode };
   }
+  if (opcode === "launch_app") {
+    const app = typeof action === "string" ? "" : (action?.app ?? action?.target ?? "");
+    if (launchAppRequiresConfirm(app)) {
+      const family = isInstallerLaunchTarget(app) ? "install" : "exec";
+      return { family, risk: "high", confirm: true, opcode };
+    }
+    return { family: "computer", risk: "medium", confirm: false, opcode };
+  }
   return { family: "computer", risk: "medium", confirm: false, opcode };
 }
 
@@ -106,11 +115,11 @@ export function intentAligned(brief, action) {
   const opcode = structuredOpcode(action);
   const goal = String(brief ?? "").trim();
   if (!goal) {
-    return { aligned: true, reason: "no_brief", opcode };
+    return { aligned: false, reason: "no_brief", opcode };
   }
   const planned = compileDesktopPhrase(goal);
   if (!planned.ok) {
-    return { aligned: true, reason: "no_structured_brief", opcode };
+    return { aligned: false, reason: "no_structured_brief", opcode };
   }
   const ops = new Set((planned.steps ?? []).map((step) => structuredOpcode(step)));
   if (ops.has(opcode)) {
@@ -137,4 +146,9 @@ export function structuredOpcode(action) {
 function isExploitOpcode(opcode, command) {
   const surface = `${opcode} ${command}`.toLowerCase();
   return EXPLOIT_MARKERS.some((marker) => surface.includes(marker));
+}
+
+function isInstallerLaunchTarget(app) {
+  const target = normalizeLaunchTarget(app);
+  return target === "msiexec" || target === "winget";
 }
