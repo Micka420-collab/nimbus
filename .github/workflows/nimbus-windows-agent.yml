@@ -51,14 +51,11 @@ jobs:
       - name: Build NSIS installer
         working-directory: nimbus/windows-agent
         run: npm run dist
-      - name: Rename artifact
+      - name: Verify installer artifact
         working-directory: nimbus/windows-agent
         shell: pwsh
         run: |
-          $built = Get-ChildItem dist -Filter "NimbusAgent-Setup-*.exe" | Select-Object -First 1
-          if (-not $built) { throw "Installer missing in dist/" }
-          Copy-Item $built.FullName "dist/NimbusAgent-Setup-x64.exe" -Force
-          $exe = Get-Item "dist/NimbusAgent-Setup-x64.exe"
+          $exe = Get-Item "dist/NimbusAgent-Setup-x64.exe" -ErrorAction Stop
           if ($exe.Length -lt 1MB) { throw "Installer too small: $($exe.Length) bytes" }
           Write-Host "NimbusAgent-Setup-x64.exe bytes=$($exe.Length)"
           Write-Host "Unsigned NSIS build — Windows SmartScreen will warn until Authenticode is added."

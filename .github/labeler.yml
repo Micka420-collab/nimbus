@@ -276,8 +276,6 @@
   - changed-files:
       - any-glob-to-any-file:
           - "nimbus/windows-agent/**"
-          - "ui/src/lib/nimbus-windows-agent.ts"
-          - "ui/src/lib/nimbus-windows-agent.test.ts"
 "app: web-ui":
   - changed-files:
       - any-glob-to-any-file:

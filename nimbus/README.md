@@ -26,7 +26,7 @@ Details: [docs/memoire.md](docs/memoire.md), [docs/colonie.md](docs/colonie.md),
 
 ## Windows companion
 
-Download from Control UI → Apps → **Download Windows Agent**, or build `NimbusAgent-Setup-x64.exe` with the `nimbus-windows-agent` workflow. Voice is a Nimbus PTT path (not Astra audio). Desktop control is foreground-only and always shows **Nimbus contrôle le bureau**.
+Download `NimbusAgent-Setup-x64.exe` from [GitHub latest](https://github.com/Micka420-collab/nimbus/releases/latest/download/NimbusAgent-Setup-x64.exe), or place a CI artifact on the Gateway host at `/nimbus-agent/NimbusAgent-Setup-x64.exe`. Build with the `nimbus-windows-agent` workflow. Voice is a Nimbus PTT path (not Astra audio). Desktop control is foreground-only and always shows **Nimbus contrôle le bureau**. See [windows-agent/README.md](windows-agent/README.md).
 
 ```bash
 node --test nimbus/windows-agent/test/*.test.js

@@ -10,7 +10,13 @@ export { speechReadiness, transcribeAudio, synthesizeSpeech, resolveSpeechConfig
 export { buildConnectParams, dispatchNodeInvoke, NODE_COMMANDS } from "./protocol.js";
 export { savePairingConfig, loadAgentConfig, mergeAgentConfig, applyVisionModel } from "./config.js";
 export { resolveWindowsAgentDownload, githubLatestDownloadUrl, WINDOWS_AGENT_ASSET } from "./download.js";
-export { createWindowsAdapter, planWindowsCommand } from "./windows-input.js";
+export {
+  createWindowsAdapter,
+  planWindowsCommand,
+  escapeSendKeysLiteral,
+  mapSendKey,
+  windowsSendKeysPayload,
+} from "./windows-input.js";
 export {
   createGatewaySession,
   createReconnectingSession,

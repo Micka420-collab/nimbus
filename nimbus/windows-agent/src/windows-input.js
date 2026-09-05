@@ -96,27 +96,15 @@ function defaultRunner(plan) {
   return spawnResult("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script]);
 }
 
-function powershellInput(plan) {
-  if (plan.kind === "type") {
-    const escaped = plan.text.replace(/'/g, "''");
-    return `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${escaped}')`;
-  }
-  if (plan.kind === "key") {
-    const key = mapSendKey(plan.key);
-    return `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${key}')`;
-  }
-  if (plan.kind === "left_click" || plan.kind === "double_click" || plan.kind === "right_click" || plan.kind === "mouse_move") {
-    const flags = plan.kind === "right_click" ? "2" : plan.kind === "double_click" ? "1" : "0";
-    return `$sig='[DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern void mouse_event(int d,int x,int y,int w,int i);'; Add-Type -Name U -Namespace N -MemberDefinition $sig; [N.U]::SetCursorPos(${plan.x},${plan.y}); if (${flags} -ne '') { [N.U]::mouse_event(0x0002,0,0,0,0); [N.U]::mouse_event(0x0004,0,0,0,0) }`;
-  }
-  if (plan.kind === "scroll") {
-    const delta = (plan.direction === "down" || plan.direction === "right" ? -1 : 1) * (plan.amount ?? 1) * 120;
-    return `$sig='[DllImport("user32.dll")] public static extern void mouse_event(int d,int x,int y,int w,int i);'; Add-Type -Name U -Namespace N -MemberDefinition $sig; [N.U]::mouse_event(0x0800,0,0,${delta},0)`;
-  }
-  return "";
+/**
+ * Literal SendKeys: wrap characters SendKeys would interpret as commands.
+ * Failure mode: unescaped `%{F4}` would be Alt+F4.
+ */
+export function escapeSendKeysLiteral(text) {
+  return String(text ?? "").replace(/[+^%~(){}]/g, (ch) => `{${ch}}`);
 }
 
-function mapSendKey(key) {
+export function mapSendKey(key) {
   const value = String(key ?? "").toLowerCase();
   if (value === "enter" || value === "return") {
     return "{ENTER}";
@@ -127,7 +115,33 @@ function mapSendKey(key) {
   if (value === "tab") {
     return "{TAB}";
   }
-  return value.replace(/[+^%~()]/g, "");
+  return escapeSendKeysLiteral(key);
+}
+
+export function windowsSendKeysPayload(plan) {
+  if (plan?.kind === "type") {
+    return escapeSendKeysLiteral(plan.text);
+  }
+  if (plan?.kind === "key") {
+    return mapSendKey(plan.key);
+  }
+  return "";
+}
+
+function powershellInput(plan) {
+  const keys = windowsSendKeysPayload(plan).replace(/'/g, "''");
+  if (plan.kind === "type" || plan.kind === "key") {
+    return `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${keys}')`;
+  }
+  if (plan.kind === "left_click" || plan.kind === "double_click" || plan.kind === "right_click" || plan.kind === "mouse_move") {
+    const flags = plan.kind === "right_click" ? "2" : plan.kind === "double_click" ? "1" : "0";
+    return `$sig='[DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern void mouse_event(int d,int x,int y,int w,int i);'; Add-Type -Name U -Namespace N -MemberDefinition $sig; [N.U]::SetCursorPos(${plan.x},${plan.y}); if (${flags} -ne '') { [N.U]::mouse_event(0x0002,0,0,0,0); [N.U]::mouse_event(0x0004,0,0,0,0) }`;
+  }
+  if (plan.kind === "scroll") {
+    const delta = (plan.direction === "down" || plan.direction === "right" ? -1 : 1) * (plan.amount ?? 1) * 120;
+    return `$sig='[DllImport("user32.dll")] public static extern void mouse_event(int d,int x,int y,int w,int i);'; Add-Type -Name U -Namespace N -MemberDefinition $sig; [N.U]::mouse_event(0x0800,0,0,${delta},0)`;
+  }
+  return "";
 }
 
 function spawnResult(cmd, args) {

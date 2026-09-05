@@ -9,7 +9,7 @@ This is not a fork of the official WinUI [Windows Hub](https://github.com/opencl
 ## Architecture
 
 ```
-Control UI (Apps download)
+GitHub latest /nimbus-agent/*.exe
         │
         ▼
 NimbusAgent-Setup-x64.exe  ──pair──►  Gateway (connect / hello-ok / node.invoke)
@@ -100,9 +100,8 @@ Optional Playwright: `cd nimbus/windows-agent && npm i playwright`. `goto` / `na
 
 ### Installer
 
-1. Control UI → **Apps** → **Download Windows Agent**.
-2. Or `https://github.com/Micka420-collab/nimbus/releases/latest/download/NimbusAgent-Setup-x64.exe`
-3. Local / air-gapped: put the CI artifact on the Gateway host at `/nimbus-agent/NimbusAgent-Setup-x64.exe`.
+1. `https://github.com/Micka420-collab/nimbus/releases/latest/download/NimbusAgent-Setup-x64.exe`
+2. Local / air-gapped: put the CI artifact on the Gateway host at `/nimbus-agent/NimbusAgent-Setup-x64.exe`.
 
 ```bash
 cd nimbus/windows-agent

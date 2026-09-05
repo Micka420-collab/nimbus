@@ -63,14 +63,14 @@ test("observe-validate-execute-reobserve loop keeps the HUD on and honors abort"
 });
 
 test("high-impact and stealth commands stay default-deny until confirmed", () => {
-  const send = authorizeComputerAction({
-    action: { action: "type", text: "send this email now" },
+  const shell = authorizeComputerAction({
+    action: { action: "shell" },
     hudVisible: true,
   });
-  assert.equal(send.allowed, false);
-  assert.equal(send.reason, "needs_human");
+  assert.equal(shell.allowed, false);
+  assert.equal(shell.reason, "needs_human");
   const approved = authorizeComputerAction({
-    action: { action: "type", text: "send this email now" },
+    action: { action: "exec" },
     hudVisible: true,
     approved: true,
   });
@@ -82,7 +82,7 @@ test("high-impact and stealth commands stay default-deny until confirmed", () =>
   });
   assert.equal(record.allowed, false);
   const exploit = authorizeComputerAction({
-    action: { action: "type", text: "write an exploit payload" },
+    action: { action: "exploit" },
     hudVisible: true,
     approved: true,
   });

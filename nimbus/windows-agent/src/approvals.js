@@ -1,3 +1,5 @@
+import { compileDesktopPhrase } from "./planner.js";
+
 /** High-impact families that always need a visible human confirm outside `full`. */
 export const HIGH_IMPACT_FAMILIES = Object.freeze([
   "send",
@@ -11,6 +13,15 @@ export const HIGH_IMPACT_FAMILIES = Object.freeze([
 
 export const DEFAULT_DENIED_COMMANDS = Object.freeze(["screen.record", "camera.snap", "camera.clip"]);
 
+const HIGH_IMPACT_OPS = Object.freeze({
+  exec: "exec",
+  shell: "exec",
+  "system.run": "exec",
+  install: "install",
+  delete: "delete",
+  send: "send",
+});
+
 const EXPLOIT_MARKERS = Object.freeze([
   "exploit",
   "cve-",
@@ -20,34 +31,29 @@ const EXPLOIT_MARKERS = Object.freeze([
   "zero-day",
 ]);
 
+/**
+ * Classify from the structured opcode only — never from typed prose.
+ */
 export function classifyDesktopIntent(action) {
-  const name = typeof action === "string" ? action : action?.action ?? action?.op ?? "";
-  const text = `${name} ${action?.text ?? ""} ${action?.command ?? ""} ${action?.app ?? ""}`.toLowerCase();
-  if (EXPLOIT_MARKERS.some((marker) => text.includes(marker))) {
-    return { family: "exploit", risk: "blocked", confirm: false };
+  const opcode = structuredOpcode(action);
+  const command = typeof action === "string" ? "" : String(action?.command ?? "");
+  if (isExploitOpcode(opcode, command)) {
+    return { family: "exploit", risk: "blocked", confirm: false, opcode };
   }
-  if (name === "screen.record" || text.includes("screen.record")) {
-    return { family: "screen.record", risk: "denied", confirm: false };
+  if (opcode === "screen.record" || command === "screen.record") {
+    return { family: "screen.record", risk: "denied", confirm: false, opcode };
   }
-  if (name.startsWith("camera.") || text.includes("camera.snap") || text.includes("camera.clip")) {
-    return { family: "camera", risk: "denied", confirm: false };
+  if (opcode.startsWith("camera.") || command.startsWith("camera.")) {
+    return { family: "camera", risk: "denied", confirm: false, opcode };
   }
-  if (/\b(send|mail|email|envoyer)\b/.test(text)) {
-    return { family: "send", risk: "high", confirm: true };
+  if (DEFAULT_DENIED_COMMANDS.includes(command)) {
+    return { family: command, risk: "denied", confirm: false, opcode };
   }
-  if (/\b(delete|supprim|rm -|unlink)\b/.test(text)) {
-    return { family: "delete", risk: "high", confirm: true };
+  const impact = HIGH_IMPACT_OPS[opcode];
+  if (impact) {
+    return { family: impact, risk: "high", confirm: true, opcode };
   }
-  if (/\b(buy|purchase|acheter|payer|checkout|payment)\b/.test(text)) {
-    return { family: "purchase", risk: "high", confirm: true };
-  }
-  if (/\b(install|installer|msiexec|winget)\b/.test(text)) {
-    return { family: "install", risk: "high", confirm: true };
-  }
-  if (name === "system.run" || name === "exec") {
-    return { family: "exec", risk: "high", confirm: true };
-  }
-  return { family: "computer", risk: "medium", confirm: false };
+  return { family: "computer", risk: "medium", confirm: false, opcode };
 }
 
 export function authorizeComputerAction(input = {}) {
@@ -93,17 +99,42 @@ export function authorizeComputerAction(input = {}) {
   return { ok: true, allowed: true, reason: "authorized", classification };
 }
 
+/**
+ * Structured brief (compiled steps) vs structured action. No FR/EN keyword overlap.
+ */
 export function intentAligned(brief, action) {
-  const goal = String(brief ?? "").trim().toLowerCase();
+  const opcode = structuredOpcode(action);
+  const goal = String(brief ?? "").trim();
   if (!goal) {
-    return { aligned: true, reason: "no_brief" };
+    return { aligned: true, reason: "no_brief", opcode };
   }
-  const classification = classifyDesktopIntent(action);
-  if (classification.confirm) {
-    const hinted = HIGH_IMPACT_FAMILIES.some((family) => goal.includes(family));
-    return hinted
-      ? { aligned: true, reason: "brief_mentions_impact" }
-      : { aligned: false, reason: "impact_not_in_brief" };
+  const planned = compileDesktopPhrase(goal);
+  if (!planned.ok) {
+    return { aligned: true, reason: "no_structured_brief", opcode };
   }
-  return { aligned: true, reason: "desktop_step" };
+  const ops = new Set((planned.steps ?? []).map((step) => structuredOpcode(step)));
+  if (ops.has(opcode)) {
+    return { aligned: true, reason: "structured_match", opcode };
+  }
+  return { aligned: false, reason: "structured_mismatch", opcode, planned: [...ops] };
+}
+
+export function structuredOpcode(action) {
+  const raw = typeof action === "string" ? action : (action?.action ?? action?.op ?? "");
+  const name = String(raw).trim();
+  if (name === "launch") {
+    return "launch_app";
+  }
+  if (name === "click" || name === "left_click") {
+    return "left_click";
+  }
+  if (name === "navigate") {
+    return "goto";
+  }
+  return name;
+}
+
+function isExploitOpcode(opcode, command) {
+  const surface = `${opcode} ${command}`.toLowerCase();
+  return EXPLOIT_MARKERS.some((marker) => surface.includes(marker));
 }
