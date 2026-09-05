@@ -200,14 +200,14 @@ Aucune installation : Node ≥ 22, aucune dépendance, aucun build. Elle fonctio
 
 ```bash
 node nimbus/cli/nimbus.mjs --help
-node --test nimbus/test/*.test.js     # 39 tests
+node --test nimbus/test/*.test.js     # 41 tests
 ```
 
 ### Ce qui écrit un état réel sur disque
 
 | Surface | Ce que ça fait | Fichier |
 | --- | --- | --- |
-| Mémoire | `learn` / `forget` / `list`, zones (`perso`, `collegue`, `tech`), TTL (`weekend` ou heures). Les secrets sont refusés, pas stockés. | `~/.nimbus/memory.json` |
+| Mémoire | `learn` / `forget` / `list`, zones (`perso`, `collegue`, `tech`), TTL (`weekend` ou heures). Toute forme `password:` / `token:` / `secret:` est refusée quelle que soit la valeur ; `--force` passe outre avec un avertissement. | `~/.nimbus/memory.json` |
 | Colonie | Ouvriers, tâches, étapes. Les actions risquées (`exec`, `network`, `send`, …) restent en `needs_approval` jusqu'à décision humaine. | `~/.nimbus/colony-ledger.json` |
 | Confiance | Scores d'approbation/rejet. Peut rendre exécutables les étapes **medium** après assez d'échantillons. N'auto-exécute jamais du risque élevé en mode deny. | `~/.nimbus/trust.json` |
 | Hors-ligne | File locale avec bascule manuelle `offline on\|off`. La reconnexion rend les éléments livrés et les approbations en attente. | `~/.nimbus/continuum.json` |
@@ -230,11 +230,7 @@ node nimbus/cli/nimbus.mjs memory learn --key stack --value Ubuntu --zone tech
 node nimbus/cli/nimbus.mjs memory list
 ```
 
-`permissions apply` réécrit la config en JSON et **perd les commentaires** du fichier d'origine. Fais-en une copie avant :
-
-```bash
-cp ~/.openclaw/openclaw.json ~/.openclaw/openclaw.json.bak
-```
+`permissions apply` réécrit la config en JSON et **perd les commentaires** du fichier d'origine. Une sauvegarde horodatée (`openclaw.json.bak-20260905T140541`) est écrite à côté avant chaque réécriture, donc la version commentée reste récupérable même après plusieurs passages.
 
 Pour tester sans toucher à ta vraie config, utilise un état isolé :
 
