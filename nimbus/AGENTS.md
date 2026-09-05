@@ -6,5 +6,6 @@ Optional local-first layer. Do not import OpenClaw `src/**` or other plugins fro
 - Never add stealth listening, keyloggers, or unauthorized-access tools.
 - Secrets stay out of memory files and git. Refuse, do not redact-and-keep.
 - Tests: `node --test nimbus/test/*.test.js` (no pnpm, no Vitest).
-- Innovations (anticipation, twin, skills, debate, continuum, trust, rooms) stay in this overlay. Do not import OpenClaw core to “finish” a stub.
+- Ship only behavior that writes real local state. No demo HUDs, stub feeders, or fake STT/TTS.
+- Voice, calendar, and Docker twin stay out until they have a real integration and an honest failure path.
 - Do not add this package to the OpenClaw `pnpm-workspace.yaml` unless an owner explicitly asks.

@@ -2,15 +2,7 @@ name: Nimbus overlay
 
 on:
   push:
-    paths:
-      - "nimbus/**"
-      - ".github/workflows/nimbus.yml"
-      - "CHANGELOG-NIMBUS.md"
   pull_request:
-    paths:
-      - "nimbus/**"
-      - ".github/workflows/nimbus.yml"
-      - "CHANGELOG-NIMBUS.md"
 
 jobs:
   test:
@@ -23,3 +15,10 @@ jobs:
           node-version: "22"
       - name: Run Nimbus tests
         run: node --test nimbus/test/*.test.js
+      - name: CLI disk smoke
+        run: |
+          STATE="${RUNNER_TEMP}/nimbus-ci"
+          node nimbus/cli/nimbus.mjs --state "$STATE" memory learn --key ci --value ok
+          test -f "$STATE/memory.json"
+          node nimbus/cli/nimbus.mjs permissions apply --config "$STATE/openclaw.json"
+          grep -q '"mode": "deny"' "$STATE/openclaw.json"

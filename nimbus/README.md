@@ -1,53 +1,40 @@
-# Nimbus — couche locale
+# Nimbus overlay
 
-Assistant personnel de Micka, posé **par-dessus** ce fork OpenClaw 2.0 (`v2026.8.1`). Ce dossier ne remplace pas le gateway, le CLI `openclaw`, ni les plugins upstream.
-
-## Lancer OpenClaw (inchangé)
-
-```bash
-pnpm install
-pnpm build
-pnpm ui:build
-pnpm openclaw onboard --install-daemon
-```
-
-Voir le README racine et https://docs.openclaw.ai
-
-## Couche Nimbus (sans installer le monorepo)
+Optional local layer on this OpenClaw 2.0 fork. Node ≥ 22, zero extra dependencies. It does not replace `openclaw`, the gateway, or bundled plugins.
 
 ```bash
 node nimbus/cli/nimbus.mjs help
 node --test nimbus/test/*.test.js
 ```
 
+State directory: `--state <dir>` or `NIMBUS_STATE_DIR` (default `~/.nimbus`).
+
+## What works
+
+| Command family | Behavior |
+| --- | --- |
+| `profile install --workspace <dir>` | Copies the French persona files. Skips existing files unless `--force`. |
+| `memory learn\|list\|forget` | Local JSON memory with zones and TTL. Secret-shaped values are refused. |
+| `colony …` | Ledger + human approval for high-risk steps. Trust can ready medium steps only. |
+| `trust show` | Per-action approval scores from colony decisions. |
+| `offline on\|off\|enqueue\|reconnect\|decide` | Local queue. Online/offline is a flag, not a network probe. |
+| `permissions apply --config <file>` | Merges `tools.exec.mode` (default `deny`) into an OpenClaw config. Existing mode is kept unless `--force`. |
+| `park …` | Session park/resume, timeline, rough cost. |
+
+Details: [docs/memoire.md](docs/memoire.md), [docs/colonie.md](docs/colonie.md), [docs/permissions.md](docs/permissions.md).
+
+## Not ready
+
+Voice STT/TTS, calendar anticipation, Docker/homelab twin, autogen skills, and debate rooms are **not implemented**. There is no demo HUD.
+
+## OpenClaw host
+
 ```bash
-# Persona FR → workspace OpenClaw existant (n'écrase rien sans --force)
-node nimbus/cli/nimbus.mjs profile install --workspace ~/.openclaw/workspace
+pnpm install && pnpm build && pnpm ui:build
 ```
 
-## Modules
-
-| Module | Rôle |
-| --- | --- |
-| Profil | `SOUL.md` / `IDENTITY.md` Jarvis FR |
-| Mémoire | préférences + corrections, zones, TTL, oubli weekend |
-| Voix | STT→agent→TTS, barge-in, HUD, pièces bureau/salon |
-| Colonie | chef, ouvriers, registre, approbation humaine |
-| Débat | sécurité vs vitesse, Reine + humain |
-| Skills | brouillon local après N succès, bac à sable deny-exec |
-| Jumeau | graphe homelab + dry-run d'impact |
-| Anticipation | hints calibrés, anti-spam |
-| Continuum | file hors-ligne + résumé à la reco |
-| Confiance | score par outil, jamais d'auto-exec haut risque en deny |
-| Park | pause / reprise, frise d'actions, coût approximatif |
-| Permissions | défaut `deny`, modes documentés |
-
-Détail innovations + limites : [docs/innovations.md](docs/innovations.md).
-
-## Voix — honnêteté
-
-**Pas d'écoute furtive.** Le micro démarre coupé. Un bouton (et la permission OS/navigateur) est obligatoire. Détail : [docs/voix-consentement.md](docs/voix-consentement.md).
+See the repo root README and https://docs.openclaw.ai
 
 ## Attribution
 
-OpenClaw est MIT, © OpenClaw Foundation. Conservé dans `LICENSE` et `THIRD_PARTY_NOTICES.md`.
+OpenClaw is MIT, © OpenClaw Foundation. Kept in `LICENSE` and `THIRD_PARTY_NOTICES.md`.

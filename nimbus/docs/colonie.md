@@ -19,4 +19,4 @@ Fichier local `colony-ledger.json` dans `NIMBUS_STATE_DIR` (défaut `~/.nimbus`)
 3. `colony decide --verdict approve|reject`
 4. `colony run` refuse tant que ce n'est pas `ready`
 
-Les écritures mémoire locales peuvent passer sans approbation. Voir les tests dans `nimbus/test/colony.test.js`.
+Les écritures mémoire locales peuvent passer sans approbation. Un score de confiance élevé peut passer une action *medium* en `ready` ; le risque haut reste humain en `deny`. Voir `nimbus/test/colony.test.js` et `nimbus/test/trust.test.js`.
